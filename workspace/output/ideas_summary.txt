@@ -1,3 +1,0 @@
-1. Trading strategy deployed for intraday trading.
-2. maskAI v0.0.1 deployed
-3. QuerySense - to parse query, chk DDL and suggest proper aliases, tablename and column names which makes sense to increase code readability adn understandability
