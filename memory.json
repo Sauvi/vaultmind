@@ -1,0 +1,12 @@
+{
+  "txt": {
+    "summarize": 6
+  },
+  "pdf": {
+    "summarize": 4,
+    "legal_review": 1
+  },
+  "docx": {
+    "summarize": 1
+  }
+}

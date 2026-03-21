@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VaultMind — Private AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0c;
+      --surface: #111116;
+      --surface2: #18181f;
+      --border: rgba(255,255,255,0.07);
+      --border-hover: rgba(255,255,255,0.15);
+      --text: #e8e8f0;
+      --text-muted: #6b6b80;
+      --text-dim: #3a3a48;
+      --accent: #7c6af7;
+      --accent-glow: rgba(124, 106, 247, 0.15);
+      --accent-dim: rgba(124, 106, 247, 0.08);
+      --green: #3ecf7e;
+      --green-dim: rgba(62, 207, 126, 0.1);
+      --red: #f46b6b;
+      --red-dim: rgba(244, 107, 107, 0.1);
+      --amber: #f0a44a;
+      --radius: 10px;
+      --radius-lg: 16px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* ── Layout ── */
+    .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(124,106,247,0.3);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-icon svg { width: 16px; height: 16px; stroke: var(--accent); }
+    .logo-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; letter-spacing: -0.3px; }
+
+    .nav { display: flex; flex-direction: column; gap: 2px; }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-size: 13px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+    .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 12px;
+      background: var(--green-dim);
+      border: 1px solid rgba(62,207,126,0.15);
+      border-radius: var(--radius);
+    }
+
+    .privacy-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--green);
+    }
+
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; flex-shrink: 0; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── Main ── */
+    .main { padding: 32px; overflow-y: auto; }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .page-header { margin-bottom: 28px; }
+    .page-title { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+    .page-sub { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+    /* ── Drop zone ── */
+    .dropzone {
+      border: 1.5px dashed var(--border-hover);
+      border-radius: var(--radius-lg);
+      padding: 48px 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--surface);
+      position: relative;
+    }
+
+    .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: var(--accent-glow); }
+
+    .dropzone-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--surface2);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+    }
+
+    .dropzone-icon svg { width: 22px; height: 22px; stroke: var(--text-muted); }
+    .dropzone h3 { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+    .dropzone p { color: var(--text-muted); font-size: 12px; }
+    .dropzone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+    /* ── Action selector ── */
+    .action-row { display: flex; gap: 8px; margin: 16px 0; }
+
+    .action-btn {
+      padding: 7px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      font-size: 12px;
+      cursor: pointer;
+      font-family: 'DM Mono', monospace;
+      transition: all 0.15s;
+    }
+
+    .action-btn:hover { border-color: var(--border-hover); color: var(--text); }
+    .action-btn.selected { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+
+    /* ── Plan card ── */
+    .plan-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-top: 16px;
+      display: none;
+    }
+
+    .plan-card.visible { display: block; }
+
+    .plan-title {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    .plan-row {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 6px 12px;
+      align-items: start;
+      margin-bottom: 8px;
+    }
+
+    .plan-label { font-size: 11px; color: var(--text-muted); padding-top: 1px; }
+    .plan-value { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text); word-break: break-all; }
+
+    .plan-actions { display: flex; gap: 10px; margin-top: 18px; }
+
+    .btn {
+      padding: 9px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--border-hover); }
+
+    /* ── Result ── */
+    .result-card {
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-top: 16px;
+      display: none;
+    }
+
+    .result-card.visible { display: block; }
+    .result-card.success { background: var(--green-dim); border: 1px solid rgba(62,207,126,0.2); }
+    .result-card.error { background: var(--red-dim); border: 1px solid rgba(244,107,107,0.2); }
+
+    .result-title { font-weight: 500; font-size: 14px; margin-bottom: 8px; }
+    .result-card.success .result-title { color: var(--green); }
+    .result-card.error .result-title { color: var(--red); }
+    .result-body { font-size: 13px; color: var(--text-muted); }
+
+    .download-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 12px;
+      padding: 7px 14px;
+      background: rgba(62,207,126,0.15);
+      border: 1px solid rgba(62,207,126,0.25);
+      border-radius: 8px;
+      color: var(--green);
+      font-size: 12px;
+      text-decoration: none;
+      font-family: 'DM Mono', monospace;
+      transition: all 0.15s;
+    }
+
+    .download-link:hover { background: rgba(62,207,126,0.25); }
+
+    /* ── Stat cards ── */
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+
+    .stat-num { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 700; color: var(--text); }
+    .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Log table ── */
+    .log-table { width: 100%; border-collapse: collapse; }
+
+    .log-table th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--text-muted);
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .log-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-family: 'DM Mono', monospace;
+      color: var(--text-muted);
+    }
+
+    .log-table tr:hover td { background: var(--surface2); }
+
+    .status-ok { color: var(--green); }
+    .status-fail { color: var(--red); }
+
+    /* ── Memory ── */
+    .memory-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+    .memory-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+
+    .memory-type { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--accent); margin-bottom: 8px; }
+    .memory-action-row { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+    .memory-action { font-size: 12px; color: var(--text-muted); }
+    .memory-count { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text); }
+
+    /* ── Loading ── */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state { text-align: center; padding: 40px; color: var(--text-dim); font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </div>
+      <span class="logo-name">VaultMind</span>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" onclick="showPage('process', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" stroke-linecap="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        Process file
+      </button>
+      <button class="nav-item" onclick="showPage('chat', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" stroke-linecap="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        Chat with file
+      </button>
+      <button class="nav-item" onclick="showPage('log', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" stroke-linecap="round">
+          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        Audit log
+      </button>
+      <button class="nav-item" onclick="showPage('memory', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" stroke-linecap="round">
+          <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+        </svg>
+        Memory
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="privacy-badge">
+        <div class="dot"></div>
+        100% local · no cloud
+      </div>
+      <div id="ollama-status" style="margin-top:8px;font-size:11px;color:var(--text-muted);">
+        Checking AI engine...
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <!-- Process page -->
+    <div id="page-process" class="page active">
+      <div class="page-header">
+        <div class="page-title">Process a file</div>
+        <div class="page-sub">Your files never leave this machine.</div>
+      </div>
+
+      <!-- Drop zone -->
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="file-input" accept=".txt,.pdf,.docx,.md" onchange="handleFileSelect(this)" />
+        <div class="dropzone-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <h3>Drop your file here</h3>
+        <p>or click to browse &nbsp;·&nbsp; .txt &nbsp;·&nbsp; .pdf &nbsp;·&nbsp; .docx &nbsp;·&nbsp; .md</p>
+      </div>
+
+      <!-- Action selector -->
+      <div class="action-row">
+        <button class="action-btn selected" onclick="selectAction('summarize', this)">summarize</button>
+        <button class="action-btn" onclick="selectAction('legal_review', this)">legal review</button>
+        <button class="action-btn" onclick="selectAction('chat', this)" disabled title="Coming soon" style="opacity:0.4;cursor:not-allowed">chat</button>
+      </div>
+
+      <!-- Plan card (dry run preview) -->
+      <div class="plan-card" id="plan-card">
+        <div class="plan-title">Proposed action — review before executing</div>
+        <div class="plan-row">
+          <div class="plan-label">Read</div>
+          <div class="plan-value" id="plan-read">—</div>
+        </div>
+        <div class="plan-row">
+          <div class="plan-label">Action</div>
+          <div class="plan-value" id="plan-action">—</div>
+        </div>
+        <div class="plan-row">
+          <div class="plan-label">Write to</div>
+          <div class="plan-value" id="plan-write">—</div>
+        </div>
+        <div class="plan-actions">
+          <button class="btn btn-primary" id="approve-btn" onclick="executeAction()">Approve & run</button>
+          <button class="btn btn-ghost" onclick="cancelPlan()">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Result card -->
+      <div class="result-card" id="result-card">
+        <div class="result-title" id="result-title">—</div>
+        <div class="result-body" id="result-body">—</div>
+      </div>
+    </div>
+
+    <!-- Audit log page -->
+    <div id="page-log" class="page">
+      <div class="page-header">
+        <div class="page-title">Audit log</div>
+        <div class="page-sub">Every action recorded. Nothing hidden.</div>
+      </div>
+
+      <div id="log-content">
+        <div class="empty-state">Loading log...</div>
+      </div>
+    </div>
+
+    <!-- Memory page -->
+    <div id="page-memory" class="page">
+      <div class="page-header">
+        <div class="page-title">Memory</div>
+        <div class="page-sub">How VaultMind learns your habits — locally.</div>
+      </div>
+
+      <div id="memory-content">
+        <div class="empty-state">Loading memory...</div>
+      </div>
+    </div>
+
+
+    <!-- Chat page -->
+    <div id="page-chat" class="page">
+      <div class="page-header">
+        <div class="page-title">Chat with a file</div>
+        <div class="page-sub">Ask questions about any document. Answers stay on your machine.</div>
+      </div>
+
+      <div class="dropzone" id="chat-dropzone" style="margin-bottom:16px;">
+        <input type="file" id="chat-file-input" accept=".txt,.pdf,.docx,.md" onchange="handleChatFile(this)" />
+        <div class="dropzone-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <h3 id="chat-file-label">Drop a file to chat with</h3>
+        <p>.txt &nbsp;·&nbsp; .pdf &nbsp;·&nbsp; .docx &nbsp;·&nbsp; .md</p>
+      </div>
+
+      <!-- Chat messages -->
+      <div id="chat-messages" style="display:none;margin-bottom:16px;max-height:400px;overflow-y:auto;display:none;flex-direction:column;gap:12px;"></div>
+
+      <!-- Input row -->
+      <div id="chat-input-row" style="display:none;gap:8px;align-items:flex-end;">
+        <textarea id="chat-question" rows="2"
+          placeholder="Ask anything about the document..."
+          style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;resize:none;outline:none;"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendQuestion();}"></textarea>
+        <button class="btn btn-primary" onclick="sendQuestion()" style="height:44px;padding:0 20px;">Ask</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  let currentFilePath = null;
+  let currentAction   = 'summarize';
+  let chatFilePath    = null;
+
+  // ── Ollama status check ───────────────────────────────────────────────────
+  async function checkOllamaStatus() {
+    try {
+      const res  = await fetch('/status');
+      const data = await res.json();
+      const el   = document.getElementById('ollama-status');
+      if (data.ollama) {
+        const model = data.models[0] || 'llama3.2';
+        el.innerHTML = '<span style="color:var(--green)">&#9679; AI ready &middot; ' + model + '</span>';
+      } else {
+        el.innerHTML = '<span style="color:var(--amber)">&#9679; Ollama offline</span>';
+      }
+    } catch { }
+  }
+  checkOllamaStatus();
+  setInterval(checkOllamaStatus, 10000);
+
+  // ── Navigation ─────────────────────────────────────────────────────────────
+  function showPage(name, btn) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    if (btn) btn.classList.add('active');
+    if (name === 'log')    loadLog();
+    if (name === 'memory') loadMemory();
+  }
+
+  // ── Action selector ────────────────────────────────────────────────────────
+  function selectAction(action, btn) {
+    currentAction = action;
+    document.querySelectorAll('.action-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  }
+
+  // ── Process file ───────────────────────────────────────────────────────────
+  function handleFileSelect(input) {
+    if (!input.files.length) return;
+    uploadFile(input.files[0]);
+  }
+
+  const dz = document.getElementById('dropzone');
+  dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag');
+    if (e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
+  });
+
+  async function uploadFile(file) {
+    hideResult();
+    const form = new FormData();
+    form.append('file', file);
+    form.append('action', currentAction);
+    try {
+      const res  = await fetch('/upload', { method: 'POST', body: form });
+      const plan = await res.json();
+      if (!plan.allowed) { showResult(false, 'File rejected', plan.error || 'Not allowed.'); return; }
+      currentFilePath = plan.file_path;
+      const info = plan.file_info || {};
+      const sizeLabel = info.size_kb ? ` (${info.size_kb} KB)` : '';
+      document.getElementById('plan-read').textContent   = plan.file_path + sizeLabel;
+      const actionLabels = { 'summarize': 'AI Summarize', 'legal_review': 'Legal Review (extract + AI analysis)' };
+      document.getElementById('plan-action').textContent = actionLabels[plan.action] || plan.action;
+      document.getElementById('plan-write').textContent  = plan.output_path;
+      document.getElementById('plan-card').classList.add('visible');
+    } catch (err) { showResult(false, 'Upload failed', err.message); }
+  }
+
+  async function executeAction() {
+    if (!currentFilePath) return;
+    const btn = document.getElementById('approve-btn');
+    btn.disabled = true;
+    document.getElementById('plan-card').classList.remove('visible');
+
+    // Legal review — stream results live
+    if (currentAction === 'legal_review') {
+      btn.innerHTML = '<span class="spinner"></span>Analysing...';
+      const card = document.getElementById('result-card');
+      card.className = 'result-card visible success';
+      document.getElementById('result-title').innerHTML = '&#9878; Legal Review';
+      const body = document.getElementById('result-body');
+      body.innerHTML = '<pre style="font-family:var(--font-mono,monospace);font-size:12px;white-space:pre-wrap;line-height:1.6;margin:0"></pre>';
+      const pre = body.querySelector('pre');
+
+      const form = new FormData();
+      form.append('file_path', currentFilePath);
+      const res = await fetch('/legal-stream', { method: 'POST', body: form });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '', output = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const token = line.slice(6);
+          if (token === '[DONE]') break;
+          output += token.replace(/\\n/g, '\n');
+          pre.textContent = output;
+        }
+      }
+
+      // After stream, trigger file save via execute endpoint
+      const saveForm = new FormData();
+      saveForm.append('file_path', currentFilePath);
+      saveForm.append('action', 'legal_review');
+      const saveRes = await fetch('/execute', { method: 'POST', body: saveForm });
+      const saved = await saveRes.json();
+      if (saved.success) {
+        const filename = saved.output.replace(/\\/g, '/').split('/').pop();
+        body.innerHTML += '<br><a class="download-link" href="/download/' + filename + '">&#8595; Download full report</a>';
+      }
+      btn.innerHTML = 'Approve & run'; btn.disabled = false;
+      return;
+    }
+
+    // Default: summarize and other actions
+    btn.innerHTML = '<span class="spinner"></span>Running AI...';
+    const form = new FormData();
+    form.append('file_path', currentFilePath);
+    form.append('action', currentAction);
+    try {
+      const res    = await fetch('/execute', { method: 'POST', body: form });
+      const result = await res.json();
+      if (result.success) {
+        const filename = result.output.replace(/\\/g, '/').split('/').pop();
+        showResult(true, '&#10003; Done',
+          'Output saved to <code>' + result.output + '</code><br/>' +
+          '<a class="download-link" href="/download/' + filename + '">&#8595; Download result</a>');
+      } else {
+        showResult(false, '&#10007; Failed', result.error);
+      }
+    } catch (err) { showResult(false, 'Error', err.message); }
+    finally { btn.innerHTML = 'Approve & run'; btn.disabled = false; }
+  }
+
+  function cancelPlan() {
+    document.getElementById('plan-card').classList.remove('visible');
+    currentFilePath = null;
+  }
+
+  function showResult(success, title, body) {
+    const card = document.getElementById('result-card');
+    card.className = 'result-card visible ' + (success ? 'success' : 'error');
+    document.getElementById('result-title').innerHTML = title;
+    document.getElementById('result-body').innerHTML  = body;
+  }
+
+  function hideResult() {
+    document.getElementById('result-card').classList.remove('visible');
+  }
+
+  // ── Chat ───────────────────────────────────────────────────────────────────
+  const cdz = document.getElementById('chat-dropzone');
+  cdz.addEventListener('dragover',  e => { e.preventDefault(); cdz.classList.add('drag'); });
+  cdz.addEventListener('dragleave', () => cdz.classList.remove('drag'));
+  cdz.addEventListener('drop', e => {
+    e.preventDefault(); cdz.classList.remove('drag');
+    if (e.dataTransfer.files.length) uploadChatFile(e.dataTransfer.files[0]);
+  });
+
+  function handleChatFile(input) {
+    if (!input.files.length) return;
+    uploadChatFile(input.files[0]);
+  }
+
+  async function uploadChatFile(file) {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('action', 'summarize');
+    try {
+      const res  = await fetch('/upload', { method: 'POST', body: form });
+      const plan = await res.json();
+      chatFilePath = plan.file_path;
+      document.getElementById('chat-file-label').innerHTML = '&#128196; ' + file.name + ' loaded';
+      document.getElementById('chat-messages').style.display   = 'flex';
+      document.getElementById('chat-input-row').style.display  = 'flex';
+      addChatMessage('system', 'File loaded. Ask me anything about it!');
+    } catch(err) { alert('Upload failed: ' + err.message); }
+  }
+
+  async function sendQuestion() {
+    const input = document.getElementById('chat-question');
+    const q     = input.value.trim();
+    if (!q || !chatFilePath) return;
+    input.value = '';
+
+    // Disable input while streaming
+    input.disabled = true;
+    document.querySelector('#chat-input-row button').disabled = true;
+
+    addChatMessage('user', q);
+    const bubble = addChatMessage('ai', '<span class="spinner"></span>');
+
+    const form = new FormData();
+    form.append('file_path', chatFilePath);
+    form.append('question',  q);
+
+    try {
+      const res = await fetch('/chat-stream', { method: 'POST', body: form });
+      if (!res.ok) { bubble.innerHTML = 'Server error. Try again.'; return; }
+
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder();
+      let   buffer  = '';
+      let   answer  = '';
+      bubble.innerHTML = '';    // clear spinner
+      let elapsed = 0;
+      const timer = setInterval(() => {
+        elapsed++;
+        if (!answer) bubble.innerHTML = '<span style="color:var(--text-muted);font-size:12px">Thinking... ' + elapsed + 's</span>';
+      }, 1000);
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE lines: "data: token\n\n"
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop();   // keep incomplete chunk
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const token = line.slice(6);
+          if (token === '[DONE]') break;
+          // Restore escaped newlines
+          answer += token.replace(/\\n/g, '\n');
+          bubble.innerHTML = answer.replace(/\n/g, '<br>');
+          // Auto-scroll
+          const box = document.getElementById('chat-messages');
+          box.scrollTop = box.scrollHeight;
+        }
+      }
+      if (!answer) bubble.innerHTML = 'No response. Is Ollama running?';
+    } catch(err) {
+      bubble.innerHTML = 'Error: ' + err.message + ' — Make sure Ollama is running.';
+    } finally {
+      clearInterval(timer);
+      input.disabled = false;
+      document.querySelector('#chat-input-row button').disabled = false;
+      input.focus();
+    }
+  }
+
+  function addChatMessage(role, html) {
+    const box = document.getElementById('chat-messages');
+    const msg = document.createElement('div');
+    const isUser = role === 'user';
+    const isSystem = role === 'system';
+    msg.style.cssText = [
+      'padding:10px 14px',
+      'border-radius:10px',
+      'font-size:13px',
+      'line-height:1.6',
+      'max-width:85%',
+      isUser   ? 'align-self:flex-end;background:var(--accent-dim);color:var(--accent);border:1px solid rgba(124,106,247,0.2)' :
+      isSystem ? 'align-self:center;background:var(--surface2);color:var(--text-muted);font-style:italic' :
+                 'align-self:flex-start;background:var(--surface);border:1px solid var(--border);color:var(--text)'
+    ].join(';');
+    msg.innerHTML = html;
+    box.appendChild(msg);
+    box.scrollTop = box.scrollHeight;
+    return msg;
+  }
+
+  // ── Audit log ──────────────────────────────────────────────────────────────
+  async function loadLog() {
+    const container = document.getElementById('log-content');
+    try {
+      const res  = await fetch('/audit');
+      const data = await res.json();
+      if (!data.log.length) { container.innerHTML = '<div class="empty-state">No actions recorded yet.</div>'; return; }
+      const rows = data.log.map(line => {
+        const parts  = line.trim().split(' | ');
+        const ts     = (parts[0]||'').replace('[','').replace(']','');
+        const status = (parts[1]||'').trim();
+        const action = parts[2]||'';
+        const file   = parts[3]||'';
+        const cls    = status === 'OK' ? 'status-ok' : 'status-fail';
+        return '<tr><td>'+ts+'</td><td class="'+cls+'">'+status+'</td><td>'+action+'</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+file+'</td></tr>';
+      }).join('');
+      container.innerHTML = '<table class="log-table"><thead><tr><th>Time</th><th>Status</th><th>Action</th><th>File</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    } catch { container.innerHTML = '<div class="empty-state">Could not load log.</div>'; }
+  }
+
+  // ── Memory ─────────────────────────────────────────────────────────────────
+  async function loadMemory() {
+    const container = document.getElementById('memory-content');
+    try {
+      const res  = await fetch('/memory');
+      const data = await res.json();
+      const keys = Object.keys(data);
+      if (!keys.length) { container.innerHTML = '<div class="empty-state">No patterns learned yet.</div>'; return; }
+      const cards = keys.map(type => {
+        const actions = data[type];
+        const rows = Object.entries(actions).map(([action, count]) =>
+          '<div class="memory-action-row"><span class="memory-action">'+action+'</span><span class="memory-count">'+count+'&times;</span></div>'
+        ).join('');
+        return '<div class="memory-item"><div class="memory-type">.'+type+'</div>'+rows+'</div>';
+      }).join('');
+      container.innerHTML = '<div class="memory-grid">'+cards+'</div>';
+    } catch { container.innerHTML = '<div class="empty-state">Could not load memory.</div>'; }
+  }
+</script>
+</body>
+</html>

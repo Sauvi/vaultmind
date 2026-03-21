@@ -1,0 +1,11 @@
+=== VaultMind Summary ===
+Source    : Saurabh_Parmar_ETL_Developer_9yrs.docx
+Type      : DOCX
+Pages     : 2
+Words     : 480
+Note      : Large document — start + end analysed
+===================================
+
+- Saurabh Parmar is a Senior ETL Developer with over nine years of experience in the field. He has demonstrated exceptional skills at resolving critical issues and understanding business logic within timely periods as evidenced by his work on Air Canada's account, where he received high recommendations for going above expectations (Asif Jafri).
+- Saurabh is recognized for being a proactive team member who has been identified early in projects due to his wealth of knowledge and skills. He possesses expertise in Teradata, Unix, Informatica, shell scripting, data warehousing, ETL processes, and Business Intelligence (Suryakant Garje).
+- His technical background includes a B.E. degree from Rajiv Gandhi Technical University with specializations in Electronics & Communication completed between 2008 to 2012; H.S.C Science at Government Inter College, Jhansi (Uttar Pradesh) finished in 2007-2008 and S.S.C Science from St. Mary’s High School during the period of 2004 to 2005; he is also certified by Teradata Corporation with SQL Certification obtained in Mumbai, IN (Teradata Basic & Advanced) since 2014 and a more recent certificate achieved in May 2
