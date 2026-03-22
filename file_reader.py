@@ -301,3 +301,64 @@ def _smart_truncate(text: str, max_chars: int) -> tuple[str, bool]:
 def clean_text(text: str) -> str:
     """Legacy alias — used by actions.py directly."""
     return _clean(text)
+
+def read_full_text(file_path: str) -> str:
+    """
+    Extract complete text without any truncation.
+    Used by RAG indexing — we need the full document to build the index.
+    Truncation happens later at query time when we send to AI.
+    """
+    path = Path(file_path)
+    ext  = path.suffix.lower()
+
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise ValueError(f"Unsupported format: '{ext}'")
+
+    if ext in (".txt", ".md"):
+        raw, _ = _extract_text(path)
+    elif ext == ".pdf":
+        raw, _ = _extract_pdf_full(path)
+    elif ext == ".docx":
+        raw, _ = _extract_docx(path)
+
+    return _clean(raw)
+
+
+def _extract_pdf_full(path: Path) -> tuple[str, int]:
+    """
+    Extract ALL pages from PDF — no page or char limits.
+    Used for RAG indexing only.
+    """
+    try:
+        import fitz
+    except ImportError:
+        raise RuntimeError("Run: pip install pymupdf")
+
+    size_mb = path.stat().st_size / (1024 * 1024)
+    if size_mb > 50:
+        raise RuntimeError(
+            f"PDF is {size_mb:.1f} MB — max 50 MB for indexing."
+        )
+
+    pages_text = []
+    with fitz.open(str(path)) as doc:
+        total_pages = len(doc)
+        for page_num in range(total_pages):
+            page   = doc[page_num]
+            blocks = page.get_text("blocks")
+            if blocks:
+                blocks_sorted = sorted(blocks, key=lambda b: (round(b[1] / 20) * 20, b[0]))
+                page_text = "\n".join(
+                    b[4].strip() for b in blocks_sorted
+                    if isinstance(b[4], str) and b[4].strip()
+                )
+            else:
+                page_text = page.get_text("text")
+
+            if page_text.strip():
+                pages_text.append(f"[Page {page_num + 1}]\n{page_text.strip()}")
+
+    if not pages_text:
+        raise RuntimeError(f"No text extracted from {path.name}.")
+
+    return "\n\n".join(pages_text), total_pages

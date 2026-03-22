@@ -196,3 +196,41 @@ def stream_legal_analyze(prompt: str, model: str = None) -> Generator[str, None,
 def build_legal_prompt(extracted_context: str, contract_type: str) -> str:
     """Public wrapper for legal prompt builder."""
     return _build_legal_prompt(extracted_context, contract_type)
+
+
+def stream_chat_with_history(
+    document_text: str,
+    history: list[dict],
+    question: str,
+    model: str = None
+) -> Generator[str, None, None]:
+    """
+    Stream answer with full conversation history.
+    history is a list of {"role": "user"|"assistant", "content": "..."}
+    Builds a single prompt that includes prior turns so model has context.
+    """
+    model = model or get_best_model()
+
+    # Build conversation history string (last 6 turns max to save RAM)
+    recent = history[-6:] if len(history) > 6 else history
+    history_text = ""
+    for turn in recent:
+        role  = "You" if turn["role"] == "user" else "VaultMind"
+        history_text += f"{role}: {turn['content']}\n"
+
+    prompt = (
+        "<|system|>\n"
+        "You are a document assistant. Answer using ONLY the document provided. "
+        "Use the conversation history to understand context and follow-up questions. "
+        "If something refers to a previous answer, use that context. "
+        "If the answer is not in the document, say so clearly.\n"
+        "<|end|>\n"
+        "<|user|>\n"
+        f"DOCUMENT:\n{document_text}\n\n"
+        f"CONVERSATION SO FAR:\n{history_text}\n"
+        f"CURRENT QUESTION: {question}\n"
+        "<|end|>\n"
+        "<|assistant|>\n"
+    )
+
+    yield from _stream(prompt, model, num_predict=350)

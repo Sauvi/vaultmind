@@ -1,0 +1,621 @@
+================================================================================
+SOFTWARE DEVELOPMENT AND SERVICES AGREEMENT
+================================================================================
+
+This Software Development and Services Agreement ("Agreement") is entered into
+as of January 15, 2025 ("Effective Date") by and between:
+
+ACME TECHNOLOGIES PVT. LTD., a company incorporated under the Companies Act,
+2013, having its registered office at 4th Floor, Tower B, Cyber City, Gurugram,
+Haryana 122002, India (hereinafter referred to as "Client" or "ACME"), AND
+
+NEXUS SOFTWARE SOLUTIONS LLP, a limited liability partnership registered under
+the Limited Liability Partnership Act, 2008, having its principal place of
+business at Unit 501, Pinnacle Business Park, Andheri East, Mumbai, Maharashtra
+400093, India (hereinafter referred to as "Vendor" or "NEXUS").
+
+Client and Vendor are sometimes referred to individually as a "Party" and
+collectively as the "Parties."
+
+================================================================================
+RECITALS
+================================================================================
+
+WHEREAS, Client desires to engage Vendor to develop certain software
+applications and provide related technology services as described herein;
+
+WHEREAS, Vendor has represented that it has the expertise, resources, and
+capability to perform the services contemplated by this Agreement;
+
+WHEREAS, the Parties desire to set forth their respective rights and
+obligations with respect to the development and delivery of the software
+and related services;
+
+NOW, THEREFORE, in consideration of the mutual covenants, representations,
+warranties, and agreements contained herein, and for other good and valuable
+consideration, the receipt and sufficiency of which are hereby acknowledged,
+the Parties hereby agree as follows:
+
+================================================================================
+ARTICLE 1 — DEFINITIONS
+================================================================================
+
+1.1 "Deliverables" means all software code, documentation, reports, designs,
+specifications, and other work product developed by Vendor pursuant to this
+Agreement, including all modifications, enhancements, and derivative works.
+
+1.2 "Intellectual Property Rights" means all patents, copyrights, trademarks,
+trade secrets, moral rights, and any other intellectual or industrial property
+rights, whether registered or unregistered, in any jurisdiction worldwide.
+
+1.3 "Confidential Information" means any and all non-public information
+disclosed by either Party to the other, whether in oral, written, electronic,
+or any other form, that is designated as confidential or that reasonably should
+be understood to be confidential given the nature of the information and
+circumstances of disclosure, including but not limited to: business plans,
+financial data, technical specifications, customer lists, pricing information,
+trade secrets, and proprietary technology.
+
+1.4 "Project" means the development of the enterprise resource planning (ERP)
+software system as more particularly described in Schedule A attached hereto
+and incorporated herein by reference.
+
+1.5 "Milestone" means each phase of the Project as set forth in the Project
+Timeline in Schedule B, the completion of which triggers a payment obligation.
+
+1.6 "Source Code" means the human-readable form of the software programs,
+including all related documentation, comments, and programmer notes.
+
+1.7 "Acceptance Criteria" means the functional and performance requirements
+that the Deliverables must satisfy as specified in Schedule C.
+
+1.8 "Change Order" means a written amendment to this Agreement executed by
+authorized representatives of both Parties that modifies the scope, timeline,
+or compensation terms.
+
+1.9 "Business Day" means any day other than a Saturday, Sunday, or public
+holiday in India.
+
+1.10 "Force Majeure Event" means any event beyond a Party's reasonable control,
+including but not limited to acts of God, natural disasters, war, terrorism,
+riots, embargoes, acts of civil or military authorities, fire, floods,
+pandemics, epidemics, or failures of third-party telecommunications networks.
+
+================================================================================
+ARTICLE 2 — SCOPE OF SERVICES
+================================================================================
+
+2.1 Services. Vendor shall perform the software development and related
+services ("Services") as described in Schedule A (Statement of Work) attached
+hereto. Vendor shall provide all personnel, equipment, software tools, and
+resources necessary to perform the Services, unless otherwise agreed in writing.
+
+2.2 Project Manager. Vendor shall designate a qualified project manager
+("Vendor PM") who shall serve as the primary point of contact for Client.
+The Vendor PM shall be responsible for coordinating all aspects of the Project,
+managing Vendor's personnel, and providing regular status updates to Client.
+Vendor shall not replace the Vendor PM without providing Client with at least
+fifteen (15) Business Days' prior written notice and obtaining Client's written
+approval, which shall not be unreasonably withheld.
+
+2.3 Key Personnel. The individuals identified in Schedule D as "Key Personnel"
+are essential to the performance of the Services. Vendor shall not remove,
+replace, or reassign Key Personnel without Client's prior written consent.
+In the event that any Key Personnel become unavailable due to resignation,
+termination, disability, or other reasons, Vendor shall promptly notify Client
+and propose a qualified replacement with equal or greater qualifications,
+subject to Client's approval.
+
+2.4 Subcontracting. Vendor shall not subcontract any portion of the Services
+to any third party without Client's prior written consent. Any approved
+subcontractor shall be bound by terms no less restrictive than those contained
+in this Agreement, particularly with respect to confidentiality and intellectual
+property. Vendor shall remain primarily liable for all Services performed by
+approved subcontractors.
+
+2.5 Change Orders. Either Party may request changes to the scope of Services
+by submitting a written Change Order request. Vendor shall provide a written
+response within five (5) Business Days detailing the impact of the requested
+change on cost, timeline, and resources. No change to the scope, timeline, or
+compensation shall be effective unless memorialized in a written Change Order
+signed by authorized representatives of both Parties.
+
+2.6 Compliance with Laws. Vendor shall perform all Services in compliance with
+all applicable laws, regulations, and industry standards, including but not
+limited to the Information Technology Act, 2000, the Personal Data Protection
+Bill, ISO/IEC 27001 security standards, and any other applicable data
+protection and cybersecurity regulations.
+
+================================================================================
+ARTICLE 3 — PROJECT TIMELINE AND MILESTONES
+================================================================================
+
+3.1 Project Schedule. Vendor shall perform the Services and deliver the
+Deliverables in accordance with the Project Timeline set forth in Schedule B.
+Time is of the essence with respect to all deadlines and milestone dates
+specified in Schedule B.
+
+3.2 Milestone Completion. Upon completion of each Milestone, Vendor shall
+deliver to Client written notice of completion along with all required
+Deliverables for that Milestone. Client shall have ten (10) Business Days
+following receipt of such notice to either: (a) accept the Milestone in
+writing, or (b) provide Vendor with detailed written notice of any deficiencies.
+
+3.3 Delay Penalties. In the event that Vendor fails to complete any Milestone
+by the scheduled date set forth in Schedule B, and such delay is not caused by
+Client or a Force Majeure Event, Vendor shall pay Client liquidated damages in
+the amount of Indian Rupees Fifty Thousand (INR 50,000) per Business Day of
+delay, up to a maximum aggregate amount of fifteen percent (15%) of the total
+Contract Value. The Parties acknowledge that such liquidated damages represent
+a reasonable estimate of the losses Client would incur from such delays and
+do not constitute a penalty.
+
+3.4 Excusable Delays. Vendor shall not be liable for delays caused directly
+by: (a) Client's failure to provide required inputs, approvals, or access
+within the timeframes specified in Schedule B; (b) Client-requested Change
+Orders that extend the Project Timeline; or (c) Force Majeure Events. Vendor
+shall provide written notice of any excusable delay within forty-eight (48)
+hours of becoming aware of the delay-causing event.
+
+================================================================================
+ARTICLE 4 — COMPENSATION AND PAYMENT TERMS
+================================================================================
+
+4.1 Contract Value. In consideration for the performance of the Services and
+delivery of the Deliverables, Client shall pay Vendor a total fixed fee of
+Indian Rupees Forty-Five Lakhs (INR 45,00,000) ("Contract Value"), payable
+in accordance with the Milestone Payment Schedule set forth in Schedule B.
+
+4.2 Payment Schedule. Payments shall be made according to the following
+Milestone schedule:
+
+    Milestone 1 — Project Kickoff and Requirements Finalization: INR 9,00,000
+    (20% of Contract Value) — Due within 7 Business Days of Agreement execution
+
+    Milestone 2 — System Architecture and Design Approval: INR 6,75,000
+    (15% of Contract Value) — Due within 7 Business Days of Client acceptance
+
+    Milestone 3 — Development Phase 1 Completion (Core Modules): INR 11,25,000
+    (25% of Contract Value) — Due within 7 Business Days of Client acceptance
+
+    Milestone 4 — Development Phase 2 Completion (Integration): INR 9,00,000
+    (20% of Contract Value) — Due within 7 Business Days of Client acceptance
+
+    Milestone 5 — User Acceptance Testing Completion: INR 4,50,000
+    (10% of Contract Value) — Due within 7 Business Days of UAT sign-off
+
+    Milestone 6 — Final Delivery and Go-Live: INR 4,50,000
+    (10% of Contract Value) — Due within 7 Business Days of go-live acceptance
+
+4.3 Invoicing. Vendor shall submit invoices to Client's designated billing
+contact within five (5) Business Days of achieving each Milestone. All invoices
+shall include: Vendor's GST registration number, description of Milestone
+achieved, applicable GST amount, and bank account details for NEFT/RTGS transfer.
+
+4.4 Payment Terms. Client shall make undisputed payments within fifteen (15)
+Business Days of receiving a valid invoice. Late payments shall accrue interest
+at the rate of eighteen percent (18%) per annum, calculated daily from the
+due date until the date of actual payment.
+
+4.5 Disputed Invoices. If Client disputes any portion of an invoice, Client
+shall pay the undisputed portion by the due date and provide written notice
+of the dispute with supporting documentation within ten (10) Business Days
+of receipt of the invoice. The Parties shall negotiate in good faith to
+resolve any payment disputes within thirty (30) days.
+
+4.6 Taxes. Each Party shall be responsible for its own income taxes. Vendor
+shall be solely responsible for GST compliance and payment on all amounts
+invoiced under this Agreement. Client shall deduct TDS as applicable under
+the Income Tax Act, 1961, and provide Vendor with Form 16A within the
+statutory timeline.
+
+4.7 Expense Reimbursement. Client shall reimburse Vendor for pre-approved,
+reasonable out-of-pocket expenses incurred in connection with the Services,
+including travel, accommodation, and equipment costs. All reimbursable expenses
+must be pre-approved by Client's Project Manager in writing and supported by
+original receipts. Expense claims must be submitted within thirty (30) days
+of incurring the expense.
+
+================================================================================
+ARTICLE 5 — INTELLECTUAL PROPERTY RIGHTS
+================================================================================
+
+5.1 Work Made for Hire. All Deliverables developed by Vendor under this
+Agreement shall be considered "works made for hire" as defined under applicable
+copyright law. To the extent any Deliverables do not qualify as works made for
+hire, Vendor hereby irrevocably assigns to Client all right, title, and interest
+in and to such Deliverables, including all Intellectual Property Rights therein,
+throughout the world, in perpetuity.
+
+5.2 Pre-existing IP. Vendor retains ownership of all software tools,
+frameworks, libraries, methodologies, and know-how developed by Vendor prior
+to or independently of this Agreement ("Vendor Background IP"). To the extent
+any Vendor Background IP is incorporated into the Deliverables, Vendor hereby
+grants Client a non-exclusive, royalty-free, perpetual, irrevocable license
+to use, modify, and distribute such Vendor Background IP solely as part of
+the Deliverables.
+
+5.3 Source Code Escrow. Vendor shall place all Source Code in escrow with
+a mutually agreed escrow agent within thirty (30) days of this Agreement's
+execution. Client shall have the right to access the escrowed Source Code
+upon: (a) Vendor's insolvency or cessation of business; (b) Vendor's material
+breach of this Agreement that remains uncured for more than thirty (30) days;
+or (c) termination of this Agreement by Client for cause.
+
+5.4 Open Source Software. Vendor shall not incorporate any open source software
+into the Deliverables without Client's prior written approval. Vendor shall
+provide Client with a complete inventory of all open source components used,
+including applicable license terms, within fifteen (15) days of this Agreement.
+
+================================================================================
+ARTICLE 6 — CONFIDENTIALITY
+================================================================================
+
+6.1 Confidentiality Obligations. Each Party agrees to: (a) hold the other
+Party's Confidential Information in strict confidence using at least the same
+degree of care it uses to protect its own confidential information, but no
+less than reasonable care; (b) not disclose Confidential Information to any
+third party without prior written consent; and (c) use Confidential Information
+solely for the purposes of performing obligations under this Agreement.
+
+6.2 Permitted Disclosures. Confidential Information may be disclosed to a
+Party's employees, contractors, and advisors who have a need to know and are
+bound by confidentiality obligations no less restrictive than those herein.
+
+6.3 Exceptions. Confidentiality obligations shall not apply to information
+that: (a) is or becomes publicly available through no fault of the receiving
+Party; (b) was rightfully known to the receiving Party before disclosure;
+(c) is independently developed by the receiving Party without use of
+Confidential Information; or (d) must be disclosed pursuant to applicable
+law or court order, provided the receiving Party provides prompt written
+notice to the disclosing Party and cooperates with any protective order.
+
+6.4 Duration. Confidentiality obligations shall survive expiration or
+termination of this Agreement for a period of five (5) years, except with
+respect to trade secrets, which shall be protected indefinitely.
+
+6.5 Data Protection. Vendor shall implement and maintain appropriate technical
+and organizational security measures to protect Client's data, including
+encryption of data at rest and in transit, access controls, and regular
+security audits. Vendor shall promptly notify Client of any actual or suspected
+data breach within twenty-four (24) hours of discovery.
+
+================================================================================
+ARTICLE 7 — REPRESENTATIONS AND WARRANTIES
+================================================================================
+
+7.1 Vendor Representations and Warranties. Vendor represents, warrants, and
+covenants that:
+
+(a) It has full power and authority to enter into and perform this Agreement;
+
+(b) The Services shall be performed in a professional and workmanlike manner
+by qualified personnel with appropriate expertise;
+
+(c) The Deliverables shall conform to the Acceptance Criteria and be free from
+material defects in workmanship for a period of twelve (12) months following
+final acceptance ("Warranty Period");
+
+(d) The Deliverables shall not infringe any third party's Intellectual Property
+Rights;
+
+(e) Vendor has not and will not incorporate any malicious code, backdoors,
+time bombs, or other harmful components into the Deliverables;
+
+(f) All personnel assigned to the Project have the legal right to work in India
+and possess the qualifications represented to Client.
+
+7.2 Client Representations and Warranties. Client represents and warrants that:
+
+(a) It has full power and authority to enter into this Agreement;
+
+(b) It will provide Vendor with timely access to systems, data, and personnel
+necessary for Vendor to perform the Services;
+
+(c) All materials provided by Client to Vendor are owned by Client or Client
+has the right to use them as contemplated herein.
+
+7.3 Warranty Remedies. During the Warranty Period, Vendor shall promptly
+remedy any defects or non-conformities in the Deliverables at no additional
+cost to Client. Vendor shall respond to warranty claims within two (2) Business
+Days and provide a resolution within ten (10) Business Days for critical defects
+and thirty (30) Business Days for non-critical defects.
+
+================================================================================
+ARTICLE 8 — INDEMNIFICATION
+================================================================================
+
+8.1 Vendor Indemnification. Vendor shall indemnify, defend, and hold harmless
+Client and its officers, directors, employees, agents, and successors
+("Client Indemnitees") from and against any and all claims, damages, losses,
+liabilities, costs, and expenses (including reasonable attorneys' fees) arising
+out of or relating to: (a) any breach by Vendor of its representations,
+warranties, or obligations under this Agreement; (b) any claim that the
+Deliverables infringe any third party's Intellectual Property Rights;
+(c) any negligent or wrongful act or omission by Vendor or its personnel;
+or (d) any data breach caused by Vendor's failure to maintain adequate
+security measures.
+
+8.2 Client Indemnification. Client shall indemnify, defend, and hold harmless
+Vendor and its partners, employees, and agents ("Vendor Indemnitees") from
+and against any and all claims arising out of or relating to: (a) any breach
+by Client of its representations, warranties, or obligations; (b) Client's
+use of the Deliverables in violation of applicable law; or (c) materials
+provided by Client that infringe third-party rights.
+
+8.3 Indemnification Procedure. The indemnified Party shall: (a) promptly
+notify the indemnifying Party in writing of any claim; (b) give the
+indemnifying Party sole control of the defense and settlement; and
+(c) provide reasonable cooperation and assistance. The indemnifying Party
+shall not settle any claim that imposes liability or obligations on the
+indemnified Party without prior written consent.
+
+================================================================================
+ARTICLE 9 — LIMITATION OF LIABILITY
+================================================================================
+
+9.1 Limitation on Damages. IN NO EVENT SHALL EITHER PARTY BE LIABLE TO THE
+OTHER FOR ANY INDIRECT, INCIDENTAL, SPECIAL, PUNITIVE, OR CONSEQUENTIAL
+DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS, LOSS OF REVENUE,
+LOSS OF DATA, OR LOSS OF BUSINESS OPPORTUNITY, ARISING OUT OF OR RELATED
+TO THIS AGREEMENT, EVEN IF SUCH PARTY HAS BEEN ADVISED OF THE POSSIBILITY
+OF SUCH DAMAGES.
+
+9.2 Aggregate Cap. EXCEPT FOR OBLIGATIONS ARISING FROM ARTICLE 6
+(CONFIDENTIALITY), ARTICLE 8 (INDEMNIFICATION), AND SECTION 5.1 (IP
+ASSIGNMENT), EACH PARTY'S TOTAL AGGREGATE LIABILITY ARISING OUT OF OR
+RELATED TO THIS AGREEMENT SHALL NOT EXCEED THE TOTAL AMOUNT PAID OR PAYABLE
+BY CLIENT TO VENDOR DURING THE TWELVE (12) MONTHS IMMEDIATELY PRECEDING
+THE EVENT GIVING RISE TO THE CLAIM.
+
+9.3 Essential Basis. THE PARTIES ACKNOWLEDGE THAT THE LIMITATIONS OF LIABILITY
+IN THIS ARTICLE REFLECT A REASONABLE ALLOCATION OF RISK AND ARE AN ESSENTIAL
+ELEMENT OF THE BASIS OF THE BARGAIN BETWEEN THE PARTIES.
+
+================================================================================
+ARTICLE 10 — TERM AND TERMINATION
+================================================================================
+
+10.1 Term. This Agreement shall commence on the Effective Date and continue
+until the completion and final acceptance of all Deliverables, unless earlier
+terminated in accordance with this Article ("Term").
+
+10.2 Termination for Cause. Either Party may terminate this Agreement upon
+written notice if the other Party: (a) materially breaches this Agreement and
+fails to cure such breach within thirty (30) days after receiving written
+notice specifying the breach in reasonable detail; (b) becomes insolvent,
+makes an assignment for the benefit of creditors, or is subject to bankruptcy
+or insolvency proceedings; or (c) ceases to conduct business in the ordinary
+course.
+
+10.3 Termination for Convenience. Client may terminate this Agreement for
+convenience upon sixty (60) days' prior written notice to Vendor. In such
+event, Client shall pay Vendor for all Services satisfactorily performed and
+accepted up to the effective date of termination, plus reasonable documented
+wind-down costs not to exceed ten percent (10%) of the unpaid Contract Value,
+provided Vendor takes all reasonable steps to mitigate such costs.
+
+10.4 Termination for Non-Payment. Vendor may suspend Services upon thirty (30)
+days' written notice if Client fails to pay any undisputed amount due and such
+failure continues for fifteen (15) days after the due date. If Client fails to
+make payment within the thirty-day notice period, Vendor may terminate this
+Agreement.
+
+10.5 Effect of Termination. Upon termination: (a) each Party shall promptly
+return or destroy the other Party's Confidential Information; (b) Client shall
+pay all amounts due for Services performed and accepted prior to termination;
+(c) all licenses granted herein shall terminate, except as provided in
+Section 5.2; and (d) Articles 5, 6, 7, 8, 9, and 11 shall survive.
+
+10.6 Transition Assistance. Upon termination or expiration, Vendor shall
+provide reasonable transition assistance for up to ninety (90) days at
+Client's written request, at Vendor's then-current standard rates. Such
+assistance shall include knowledge transfer, documentation, and reasonable
+cooperation with any successor vendor.
+
+================================================================================
+ARTICLE 11 — DISPUTE RESOLUTION
+================================================================================
+
+11.1 Informal Resolution. In the event of any dispute, controversy, or claim
+arising out of or relating to this Agreement, the Parties shall first attempt
+to resolve such dispute through good-faith negotiations between senior
+representatives of each Party for a period of thirty (30) days following
+written notice of the dispute ("Negotiation Period").
+
+11.2 Mediation. If the dispute is not resolved during the Negotiation Period,
+either Party may submit the dispute to mediation administered by the Indian
+Mediation Centre or such other mediation body as the Parties may agree. The
+costs of mediation shall be shared equally between the Parties.
+
+11.3 Arbitration. If mediation fails to resolve the dispute within sixty (60)
+days of commencement, either Party may submit the dispute to binding
+arbitration under the Arbitration and Conciliation Act, 1996. The arbitration
+shall be conducted by a sole arbitrator mutually agreed upon by the Parties,
+or failing agreement, appointed by the High Court of Bombay. The seat and
+venue of arbitration shall be Mumbai, Maharashtra. The language of arbitration
+shall be English. The arbitral award shall be final and binding.
+
+11.4 Governing Law. This Agreement shall be governed by and construed in
+accordance with the laws of India, without giving effect to any choice of
+law or conflict of law provisions. Subject to the arbitration clause above,
+the Parties submit to the exclusive jurisdiction of the courts in Mumbai,
+Maharashtra.
+
+11.5 Injunctive Relief. Notwithstanding the foregoing, either Party may seek
+injunctive or other equitable relief from any court of competent jurisdiction
+to prevent irreparable harm, including with respect to breaches of Articles
+5 or 6, without first complying with the dispute resolution procedures herein.
+
+================================================================================
+ARTICLE 12 — GENERAL PROVISIONS
+================================================================================
+
+12.1 Entire Agreement. This Agreement, together with all Schedules and
+attachments, constitutes the entire agreement between the Parties with respect
+to the subject matter hereof and supersedes all prior and contemporaneous
+agreements, understandings, and negotiations, whether written or oral.
+
+12.2 Amendments. No amendment, modification, or waiver of any provision of
+this Agreement shall be valid unless made in writing and signed by authorized
+representatives of both Parties.
+
+12.3 Waiver. No waiver by either Party of any breach or default shall
+constitute a waiver of any subsequent breach or default. Failure to enforce
+any provision shall not constitute a waiver of that Party's right to enforce
+such provision in the future.
+
+12.4 Severability. If any provision of this Agreement is held invalid or
+unenforceable, such provision shall be modified to the minimum extent necessary
+to make it valid and enforceable, and the remaining provisions shall continue
+in full force and effect.
+
+12.5 Assignment. Neither Party may assign this Agreement or any rights or
+obligations hereunder without the other Party's prior written consent, which
+shall not be unreasonably withheld. Notwithstanding the foregoing, either
+Party may assign this Agreement without consent in connection with a merger,
+acquisition, or sale of all or substantially all of its assets, provided the
+assignee assumes all obligations hereunder.
+
+12.6 Force Majeure. Neither Party shall be liable for any delay or failure
+in performance resulting from a Force Majeure Event. The affected Party shall
+promptly notify the other Party of the Force Majeure Event and its expected
+duration. If a Force Majeure Event continues for more than sixty (60) days,
+either Party may terminate this Agreement upon thirty (30) days' written notice
+without liability, except for payment of amounts already due.
+
+12.7 Independent Contractors. The Parties are independent contractors. Nothing
+in this Agreement shall create or be deemed to create a partnership, joint
+venture, agency, employment, or fiduciary relationship between the Parties.
+
+12.8 Notices. All notices under this Agreement shall be in writing and
+delivered by: (a) hand delivery with written acknowledgment; (b) nationally
+recognized overnight courier; or (c) email with confirmation of receipt, to
+the addresses specified on the signature page. Notices shall be effective upon
+receipt.
+
+12.9 Counterparts. This Agreement may be executed in counterparts, each of
+which shall be deemed an original and all of which together shall constitute
+one and the same instrument. Electronic signatures shall be deemed valid.
+
+12.10 No Third-Party Beneficiaries. This Agreement is for the sole benefit
+of the Parties and their permitted successors and assigns. Nothing herein
+shall create any rights in any third party.
+
+================================================================================
+SCHEDULES
+================================================================================
+
+SCHEDULE A — STATEMENT OF WORK
+
+The Project scope includes development of an integrated ERP system comprising:
+
+Module 1: Financial Management System
+- General Ledger with multi-currency support
+- Accounts Payable and Receivable automation
+- GST-compliant invoicing and reporting
+- Bank reconciliation and treasury management
+- Financial reporting and MIS dashboards
+- Integration with existing banking partners
+
+Module 2: Human Resource Management
+- Employee master data management
+- Payroll processing with statutory compliance (PF, ESI, TDS)
+- Leave and attendance management
+- Performance appraisal workflow
+- Training and development tracking
+
+Module 3: Supply Chain Management
+- Vendor management and procurement
+- Purchase order and approval workflows
+- Inventory management with warehouse support
+- Logistics tracking and delivery management
+- Vendor payment automation
+
+Module 4: Customer Relationship Management
+- Lead and opportunity management
+- Customer 360-degree view
+- Service ticket and escalation management
+- Customer communication history
+- Sales forecasting and pipeline reporting
+
+Module 5: System Integration and Infrastructure
+- REST API development for third-party integrations
+- Single Sign-On (SSO) implementation
+- Role-based access control (RBAC)
+- Data migration from legacy systems
+- Performance testing and security audit
+
+SCHEDULE B — PROJECT TIMELINE
+
+Milestone 1: Requirements Finalization — February 15, 2025
+Milestone 2: Architecture Approval — March 15, 2025
+Milestone 3: Development Phase 1 — June 30, 2025
+Milestone 4: Development Phase 2 — September 30, 2025
+Milestone 5: UAT Completion — November 15, 2025
+Milestone 6: Go-Live — December 31, 2025
+
+SCHEDULE C — ACCEPTANCE CRITERIA
+
+System Performance:
+- Page load time: < 3 seconds under normal load
+- Concurrent users: minimum 500 without degradation
+- System availability: 99.5% uptime during business hours
+- Data backup: automated daily backups with 30-day retention
+- Disaster recovery: RTO of 4 hours, RPO of 1 hour
+
+Security Requirements:
+- ISO/IEC 27001 compliance
+- OWASP Top 10 vulnerability remediation
+- Data encryption at rest (AES-256) and in transit (TLS 1.3)
+- Multi-factor authentication for all admin users
+- Quarterly penetration testing
+
+SCHEDULE D — KEY PERSONNEL
+
+Vendor Key Personnel:
+- Project Manager: Rajesh Kumar Sharma
+- Lead Architect: Priya Venkataraman
+- Senior Developer (Backend): Mohammed Al-Rashid
+- Senior Developer (Frontend): Sneha Patel
+- QA Lead: Arvind Krishnamurthy
+- Security Specialist: Deepak Malhotra
+
+Client Key Personnel:
+- Project Sponsor: Ms. Anita Mehta (CTO, ACME Technologies)
+- Project Manager: Mr. Vikram Singh
+- Finance Lead: Ms. Kavitha Nair
+- IT Infrastructure Lead: Mr. Sanjay Gupta
+
+================================================================================
+SIGNATURE PAGE
+================================================================================
+
+IN WITNESS WHEREOF, the Parties have executed this Agreement as of the date
+first written above.
+
+ACME TECHNOLOGIES PVT. LTD.
+
+Signature: _______________________
+Name:      Anita Mehta
+Title:     Chief Technology Officer
+Date:      January 15, 2025
+Address:   4th Floor, Tower B, Cyber City, Gurugram, Haryana 122002
+Email:     anita.mehta@acmetech.in
+PAN:       AABCA1234B
+GSTIN:     06AABCA1234B1ZX
+
+NEXUS SOFTWARE SOLUTIONS LLP
+
+Signature: _______________________
+Name:      Rohit Desai
+Title:     Managing Partner
+Date:      January 15, 2025
+Address:   Unit 501, Pinnacle Business Park, Andheri East, Mumbai 400093
+Email:     rohit.desai@nexussoftware.in
+PAN:       AAFCN5678C
+GSTIN:     27AAFCN5678C1Z2
+
+================================================================================
+END OF AGREEMENT
+================================================================================
