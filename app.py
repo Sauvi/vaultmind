@@ -1,7 +1,8 @@
 """
-app.py — VaultMind v0.6
-RAG-powered document AI.
-Upload once → index full document → chat, summarize, legal review all use the index.
+app.py — VaultMind v0.7
+Simplified architecture — full document sent directly to AI.
+No chunking, no retrieval gaps, no missed content.
+RAG index kept for legal pattern extraction only (full doc scan).
 """
 
 import os
@@ -22,8 +23,29 @@ from ollama_engine import (
     get_best_model
 )
 from file_reader import read_document, read_full_text, SUPPORTED_EXTENSIONS
-from rag_engine import index_document, get_context, get_summary_context, get_stats, DocumentIndex
 from legal_extractor import extract_fast, build_ai_prompt, format_report
+from drafting import (
+    get_template_list, get_template_fields,
+    draft_document, save_draft, save_draft_docx
+)
+from multi_doc import (
+    DocCollection, add_document, get_multi_context,
+    get_collection_summary, find_conflicts
+)
+from drafting import (
+    get_template_list, get_template_fields,
+    draft_document, save_draft, save_draft_docx,
+)
+from multi_doc import (
+    DocCollection, add_document, get_multi_context,
+    get_collection_summary, find_conflicts,
+)
+from features import (
+    compare_contracts, format_comparison,
+    extract_clauses, format_clauses,
+    track_deadlines, format_deadlines,
+    generate_report,
+)
 
 # ── Dirs ──────────────────────────────────────────────────────────────────────
 BASE_DIR     = Path(__file__).parent
@@ -37,12 +59,13 @@ for d in [INPUT_DIR, OUTPUT_DIR, STATIC_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 # ── In-memory stores ──────────────────────────────────────────────────────────
-# Key: file_path string
-_doc_index:    dict[str, DocumentIndex] = {}   # RAG index per file
-_chat_history: dict[str, list[dict]]   = {}   # conversation history per file
+_doc_cache:         dict[str, str]        = {}  # file_path → full clean text
+_doc_meta:          dict[str, dict]       = {}  # file_path → metadata
+_chat_history:      dict[str, list[dict]] = {}  # file_path → conversation
+_multi_collections: dict[str, object]     = {}  # session_id → DocCollection
 
 # ── App ───────────────────────────────────────────────────────────────────────
-app = FastAPI(title="VaultMind", version="0.6.0")
+app = FastAPI(title="VaultMind", version="0.7.0")
 
 
 @app.on_event("startup")
@@ -62,43 +85,31 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
 
-# ── Helper ────────────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _resolve_path(file_path: str) -> Path:
-    """Resolve file path — try as-is, then relative to INPUT_DIR."""
     p = Path(file_path)
     if p.exists():
         return p
     alt = INPUT_DIR / p.name
     if alt.exists():
         return alt
-    return p  # return even if not found — caller handles error
+    return p
 
 
-def _get_or_build_index(file_path: str) -> DocumentIndex:
-    """Return cached index or build a new one."""
+def _get_doc_text(file_path: str) -> str:
+    """Get full document text — cached after first read."""
     key = str(Path(file_path))
-    if key not in _doc_index:
+    if key not in _doc_cache:
         full_path = _resolve_path(file_path)
-        # Use read_full_text — no truncation for indexing
-        full_text   = read_full_text(str(full_path))
-        # Also get page count from read_document
-        doc_meta    = read_document(str(full_path))
-        idx = index_document(
-            text        = full_text,
-            file_name   = full_path.name,
-            total_pages = doc_meta.pages,
-        )
-        _doc_index[key] = idx
-        print(f"📚 Indexed {full_path.name}: {len(idx.chunks)} chunks, {idx.total_words} words")
-    return _doc_index[key]
+        _doc_cache[key] = read_full_text(str(full_path))
+    return _doc_cache[key]
 
 
 def _log_audit(action: str, file_path: str, success: bool):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    status = "OK" if success else "FAIL"
     with open(AUDIT_FILE, "a") as f:
-        f.write(f"[{ts}] {status} | {action} | {file_path}\n")
+        f.write(f"[{ts}] {'OK' if success else 'FAIL'} | {action} | {file_path}\n")
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -115,8 +126,10 @@ async def index(request: Request):
 @app.get("/status")
 async def status():
     running = is_ollama_running()
-    models  = list_models() if running else []
-    return JSONResponse({"ollama": running, "models": models})
+    return JSONResponse({
+        "ollama": running,
+        "models": list_models() if running else []
+    })
 
 
 @app.get("/check-deps")
@@ -137,10 +150,7 @@ async def check_deps():
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...), action: str = Form("summarize")):
-    """
-    Upload file + immediately build RAG index.
-    Index is stored in memory — all subsequent operations use it.
-    """
+    """Upload file — read full text and cache it."""
     try:
         safe_name = Path(file.filename).name
         save_path = INPUT_DIR / safe_name
@@ -148,23 +158,25 @@ async def upload_file(file: UploadFile = File(...), action: str = Form("summariz
         with open(save_path, "wb") as f:
             shutil.copyfileobj(file.file, f)
 
-        # Build RAG index on upload — use full text, no truncation
+        # Read and cache full document text
         key       = str(save_path)
         full_text = read_full_text(str(save_path))
         doc_meta  = read_document(str(save_path))
-        idx = index_document(
-            text        = full_text,
-            file_name   = safe_name,
-            total_pages = doc_meta.pages,
-        )
-        _doc_index[key] = idx
 
-        # Reset chat history for this file
-        _chat_history[key] = []
+        _doc_cache[key]    = full_text
+        _chat_history[key] = []  # reset conversation
+        _doc_meta[key] = {
+            "name":       safe_name,
+            "pages":      doc_meta.pages,
+            "words":      len(full_text.split()),
+            "chars":      len(full_text),
+            "size_kb":    round(save_path.stat().st_size / 1024, 1),
+            "extension":  save_path.suffix.lower(),
+        }
 
-        stats = get_stats(idx)
-        print(f"📚 Indexed {safe_name}: {stats['chunks']} chunks, "
-              f"{stats['total_words']} words, {stats['total_pages']} pages")
+        meta = _doc_meta[key]
+        print(f"📄 Loaded {safe_name}: {meta['words']:,} words, "
+              f"{meta['pages']} pages, {meta['chars']:,} chars")
 
         return JSONResponse({
             "file_path":   str(save_path),
@@ -174,29 +186,26 @@ async def upload_file(file: UploadFile = File(...), action: str = Form("summariz
             "file_info": {
                 "name":      safe_name,
                 "extension": save_path.suffix.lower(),
-                "size_kb":   round(save_path.stat().st_size / 1024, 1),
+                "size_kb":   meta["size_kb"],
                 "supported": save_path.suffix.lower() in SUPPORTED_EXTENSIONS,
+                "pages":     meta["pages"],
+                "words":     meta["words"],
             },
-            "index_stats": stats,
         })
 
     except Exception as e:
         return JSONResponse({
-            "allowed": False,
-            "error":   str(e),
+            "allowed": False, "error": str(e),
             "file_path": "", "action": action, "output_path": "",
         })
 
 
 @app.post("/chat-stream")
 async def chat_stream(file_path: str = Form(...), question: str = Form(...)):
-    """
-    Stream chat answer using RAG — finds relevant chunks, answers from those.
-    Includes conversation history for follow-up questions.
-    """
+    """Stream answer — sends FULL document text to AI, no chunking."""
     if not is_ollama_running():
         async def err():
-            yield "data: Ollama is not running. Please start Ollama.\n\n"
+            yield "data: Ollama is not running.\n\n"
         return StreamingResponse(err(), media_type="text/event-stream")
 
     full_path = _resolve_path(file_path)
@@ -205,40 +214,24 @@ async def chat_stream(file_path: str = Form(...), question: str = Form(...)):
             yield "data: File not found. Please re-upload.\n\n"
         return StreamingResponse(err(), media_type="text/event-stream")
 
-    try:
-        # Get or build index
-        idx = _get_or_build_index(str(full_path))
-
-        # Retrieve relevant context for this question
-        context = get_context(idx, question)
-
-        # Get conversation history
-        key     = str(full_path)
-        history = _chat_history.get(key, [])
-
-    except Exception as e:
-        async def err():
-            yield f"data: Error preparing context: {str(e)}\n\n"
-        return StreamingResponse(err(), media_type="text/event-stream")
+    key         = str(full_path)
+    doc_text    = _get_doc_text(str(full_path))
+    history     = _chat_history.get(key, [])
 
     def generate():
         answer_tokens = []
-        for token in stream_chat_with_history(context, history, question):
+        for token in stream_chat_with_history(doc_text, history, question):
             safe = token.replace("\n", "\\n")
             yield f"data: {safe}\n\n"
             answer_tokens.append(token)
         yield "data: [DONE]\n\n"
 
-        # Save to history
+        # Save turn to history
         full_answer = "".join(answer_tokens).strip()
         if full_answer:
             history.append({"role": "user",      "content": question})
-            history.append({"role": "assistant", "content": full_answer[:500]})
-            # Cap history at 20 turns
-            if len(history) > 20:
-                _chat_history[key] = history[-20:]
-            else:
-                _chat_history[key] = history
+            history.append({"role": "assistant", "content": full_answer[:600]})
+            _chat_history[key] = history[-20:]  # keep last 20 turns
 
     return StreamingResponse(generate(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
@@ -246,7 +239,7 @@ async def chat_stream(file_path: str = Form(...), question: str = Form(...)):
 
 @app.post("/summarize-stream")
 async def summarize_stream(file_path: str = Form(...)):
-    """Stream AI summary using representative chunks from across the document."""
+    """Stream summary — sends full document, AI reads everything."""
     if not is_ollama_running():
         async def err():
             yield "data: Ollama is not running.\n\n"
@@ -260,18 +253,17 @@ async def summarize_stream(file_path: str = Form(...)):
 
     def generate():
         try:
-            idx     = _get_or_build_index(str(full_path))
-            context = get_summary_context(idx)
-            stats   = get_stats(idx)
+            doc_text = _get_doc_text(str(full_path))
+            meta     = _doc_meta.get(str(full_path), {})
 
-            # Stream header
-            header = (f"Document: {stats['file_name']} · "
-                      f"{stats['total_pages']} pages · "
-                      f"{stats['total_words']:,} words · "
-                      f"{stats['chunks']} indexed chunks\\n\\n")
+            header = (
+                f"Document: {meta.get('name', full_path.name)}\\n"
+                f"Pages: {meta.get('pages', '?')} · "
+                f"Words: {meta.get('words', 0):,}\\n\\n"
+            )
             yield f"data: {header}\n\n"
 
-            for token in stream_summary(context):
+            for token in stream_summary(doc_text):
                 safe = token.replace("\n", "\\n")
                 yield f"data: {safe}\n\n"
 
@@ -288,9 +280,9 @@ async def summarize_stream(file_path: str = Form(...)):
 @app.post("/legal-stream")
 async def legal_stream(file_path: str = Form(...)):
     """
-    Stream legal review.
-    Stage 1: Pattern extraction on FULL document (all chunks).
-    Stage 2: AI analysis on extracted sections only.
+    Legal review — full document scan.
+    Stage 1: Pattern extraction on complete text (instant).
+    Stage 2: AI analysis on extracted sections.
     """
     full_path = _resolve_path(file_path)
     if not full_path.exists():
@@ -300,43 +292,45 @@ async def legal_stream(file_path: str = Form(...)):
 
     def generate():
         try:
-            # Use full_text from index for legal extraction — scans everything
-            idx      = _get_or_build_index(str(full_path))
-            full_doc = idx.full_text   # complete document, not truncated
+            doc_text = _get_doc_text(str(full_path))
+            meta     = _doc_meta.get(str(full_path), {})
 
-            # Stage 1 — pattern extraction on full document
-            extraction = extract_fast(full_doc, pages_read=idx.total_pages)
-            stats      = get_stats(idx)
+            # Stage 1 — full document pattern extraction
+            extraction = extract_fast(doc_text, pages_read=meta.get("pages", 1))
 
             header = (
-                f"LEGAL REVIEW — {stats['file_name']}\\n"
-                f"Pages: {stats['total_pages']} · "
-                f"Words: {stats['total_words']:,} · "
-                f"Chunks indexed: {stats['chunks']}\\n"
-                f"{'─' * 40}\\n\\n"
+                f"LEGAL REVIEW — {meta.get('name', full_path.name)}\\n"
+                f"Pages: {meta.get('pages', '?')} · "
+                f"Words: {meta.get('words', 0):,}\\n"
+                f"{'─' * 44}\\n\\n"
                 f"STAGE 1 — Pattern extraction (full document)\\n"
-                f"Contract type  : {extraction.contract_type}\\n"
-                f"Parties found  : {len(extraction.parties)}\\n"
-                f"Key dates      : {len(extraction.dates)}\\n"
-                f"Risk clauses   : {len(extraction.risk_clauses)}\\n"
-                f"Obligations    : {len(extraction.obligations)}\\n"
-                f"Governing law  : {extraction.governing_law or 'Not detected'}\\n"
+                f"Contract type : {extraction.contract_type}\\n"
+                f"Parties found : {len(extraction.parties)}\\n"
+                f"Key dates     : {len(extraction.dates)}\\n"
+                f"Risk clauses  : {len(extraction.risk_clauses)}\\n"
+                f"Obligations   : {len(extraction.obligations)}\\n"
+                f"Governing law : {extraction.governing_law or 'Not detected'}\\n"
             )
 
             if extraction.parties:
-                header += f"\\nParties:\\n"
+                header += "\\nParties:\\n"
                 for p in extraction.parties:
                     header += f"  • {p}\\n"
 
             if extraction.dates:
-                header += f"\\nKey dates:\\n"
+                header += "\\nKey dates:\\n"
                 for d in extraction.dates:
                     header += f"  • {d}\\n"
+
+            if extraction.risk_clauses:
+                header += "\\nRisk clauses detected:\\n"
+                for r in extraction.risk_clauses[:4]:
+                    header += f"  ⚠  {r[:120]}...\\n"
 
             for line in header.split("\\n"):
                 yield f"data: {line}\\n\n\n"
 
-            # Stage 2 — AI on extracted sections
+            # Stage 2 — AI analysis
             if is_ollama_running() and (extraction.risk_clauses or extraction.obligations):
                 ai_prompt = build_ai_prompt(extraction)
                 yield "data: \\n\n\n"
@@ -346,7 +340,6 @@ async def legal_stream(file_path: str = Form(...)):
                     safe = token.replace("\n", "\\n")
                     yield f"data: {safe}\n\n"
             else:
-                yield "data: \\n\n\n"
                 yield "data: (Start Ollama for AI risk analysis)\\n\n\n"
 
             yield "data: [DONE]\n\n"
@@ -359,9 +352,385 @@ async def legal_stream(file_path: str = Form(...)):
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+
+
+@app.post("/compare")
+async def compare(
+    file_path_a: str = Form(...),
+    file_path_b: str = Form(...),
+):
+    """Compare two contracts — instant, no AI needed."""
+    try:
+        path_a = _resolve_path(file_path_a)
+        path_b = _resolve_path(file_path_b)
+        if not path_a.exists():
+            return JSONResponse({"success": False, "error": f"File A not found: {file_path_a}"})
+        if not path_b.exists():
+            return JSONResponse({"success": False, "error": f"File B not found: {file_path_b}"})
+
+        text_a = _get_doc_text(str(path_a))
+        text_b = _get_doc_text(str(path_b))
+        result = compare_contracts(text_a, text_b, path_a.name, path_b.name)
+        report = format_comparison(result)
+
+        # Save report
+        out_path = OUTPUT_DIR / f"comparison_{path_a.stem}_vs_{path_b.stem}.txt"
+        out_path.write_text(report, encoding="utf-8")
+        _log_audit("compare", f"{path_a.name} vs {path_b.name}", True)
+
+        return JSONResponse({
+            "success":  True,
+            "result":   result,
+            "report":   report,
+            "output":   str(out_path),
+            "filename": out_path.name,
+        })
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/extract-clauses")
+async def extract_clauses_route(
+    file_path:   str = Form(...),
+    clause_type: str = Form("all"),
+):
+    """Extract specific clause types from a contract."""
+    try:
+        full_path = _resolve_path(file_path)
+        if not full_path.exists():
+            return JSONResponse({"success": False, "error": "File not found."})
+
+        text    = _get_doc_text(str(full_path))
+        clauses = extract_clauses(text, clause_type)
+        report  = format_clauses(clauses, full_path.name)
+
+        out_path = OUTPUT_DIR / f"{full_path.stem}_clauses.txt"
+        out_path.write_text(report, encoding="utf-8")
+        _log_audit("clause_extract", str(full_path), True)
+
+        return JSONResponse({
+            "success":  True,
+            "clauses":  clauses,
+            "report":   report,
+            "output":   str(out_path),
+            "filename": out_path.name,
+        })
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/track-deadlines")
+async def track_deadlines_route(file_path: str = Form(...)):
+    """Extract all dates and obligations as a checklist."""
+    try:
+        full_path = _resolve_path(file_path)
+        if not full_path.exists():
+            return JSONResponse({"success": False, "error": "File not found."})
+
+        text    = _get_doc_text(str(full_path))
+        tracker = track_deadlines(text, full_path.name)
+        report  = format_deadlines(tracker)
+
+        out_path = OUTPUT_DIR / f"{full_path.stem}_deadlines.txt"
+        out_path.write_text(report, encoding="utf-8")
+        _log_audit("track_deadlines", str(full_path), True)
+
+        return JSONResponse({
+            "success":  True,
+            "tracker":  tracker,
+            "report":   report,
+            "output":   str(out_path),
+            "filename": out_path.name,
+        })
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/generate-report")
+async def generate_report_route(file_path: str = Form(...)):
+    """Generate a professional DOCX report with all findings."""
+    try:
+        full_path = _resolve_path(file_path)
+        if not full_path.exists():
+            return JSONResponse({"success": False, "error": "File not found."})
+
+        text       = _get_doc_text(str(full_path))
+        meta       = _doc_meta.get(str(full_path), {})
+        extraction = extract_fast(text, pages_read=meta.get("pages", 1))
+        clauses    = extract_clauses(text, "all")
+        tracker    = track_deadlines(text, full_path.name)
+
+        out_name = f"{full_path.stem}_vaultmind_report.docx"
+        out_path = str(OUTPUT_DIR / out_name)
+
+        docx_path = generate_report(
+            extraction  = extraction,
+            file_name   = full_path.name,
+            output_path = out_path,
+            clauses     = clauses,
+            tracker     = tracker,
+        )
+
+        _log_audit("generate_report", str(full_path), True)
+
+        return JSONResponse({
+            "success":  True,
+            "output":   docx_path,
+            "filename": out_name,
+            "message":  "Professional DOCX report generated successfully.",
+        })
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+
+
+# ── DRAFTING ASSISTANT ────────────────────────────────────────────────────────
+
+@app.get("/draft/templates")
+async def draft_templates():
+    """Return available draft templates."""
+    return JSONResponse({"templates": get_template_list()})
+
+
+@app.get("/draft/fields/{template_id}")
+async def draft_fields(template_id: str):
+    """Return fields needed for a template."""
+    try:
+        return JSONResponse(get_template_fields(template_id))
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.post("/draft/generate")
+async def draft_generate(request: Request):
+    """Generate a draft document from template + fields."""
+    try:
+        body        = await request.json()
+        template_id = body.get("template_id", "nda")
+        fields      = body.get("fields", {})
+        fmt         = body.get("format", "docx")  # "txt" or "docx"
+
+        content_text = draft_document(template_id, fields)
+
+        if fmt == "docx":
+            out_path = save_draft_docx(content_text, template_id)
+        else:
+            out_path = save_draft(content_text, template_id)
+
+        filename = Path(out_path).name
+        _log_audit("draft_generate", template_id, True)
+
+        return JSONResponse({
+            "success":  True,
+            "content":  content_text,
+            "output":   out_path,
+            "filename": filename,
+        })
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+# ── MULTI-DOCUMENT ────────────────────────────────────────────────────────────
+
+SESSION_ID = "default"  # Single-user app — one session
+
+
+@app.post("/multi/add")
+async def multi_add(file: UploadFile = File(...)):
+    """Add a document to the multi-doc collection."""
+    try:
+        safe_name = Path(file.filename).name
+        save_path = INPUT_DIR / safe_name
+        with open(save_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+
+        full_text = read_full_text(str(save_path))
+        _doc_cache[str(save_path)]    = full_text
+        _chat_history[str(save_path)] = []
+
+        if SESSION_ID not in _multi_collections:
+            _multi_collections[SESSION_ID] = DocCollection()
+
+        add_document(_multi_collections[SESSION_ID], safe_name, full_text)
+        summary = get_collection_summary(_multi_collections[SESSION_ID])
+
+        return JSONResponse({
+            "success":   True,
+            "file_name": safe_name,
+            "collection": summary,
+        })
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/multi/remove")
+async def multi_remove(file_name: str = Form(...)):
+    """Remove a document from the multi-doc collection."""
+    if SESSION_ID in _multi_collections:
+        from multi_doc import remove_document as _rm
+        _rm(_multi_collections[SESSION_ID], file_name)
+    return JSONResponse({"success": True})
+
+
+@app.get("/multi/status")
+async def multi_status():
+    """Return current multi-doc collection status."""
+    if SESSION_ID not in _multi_collections:
+        return JSONResponse({"count": 0, "names": [], "total_words": 0})
+    return JSONResponse(get_collection_summary(_multi_collections[SESSION_ID]))
+
+
+@app.post("/multi/chat-stream")
+async def multi_chat_stream(question: str = Form(...)):
+    """Stream answer from multi-document collection."""
+    if not is_ollama_running():
+        async def err():
+            yield "data: Ollama is not running.\n\n"
+        return StreamingResponse(err(), media_type="text/event-stream")
+
+    collection = _multi_collections.get(SESSION_ID)
+    if not collection or not collection.docs:
+        async def err():
+            yield "data: No documents loaded. Add documents first.\n\n"
+        return StreamingResponse(err(), media_type="text/event-stream")
+
+    context  = get_multi_context(collection, question)
+    history  = _chat_history.get(f"multi_{SESSION_ID}", [])
+    conflicts = find_conflicts(collection)
+
+    def generate():
+        answer_tokens = []
+        for token in stream_chat_with_history(context, history, question):
+            safe = token.replace("\n", "\\n")
+            yield f"data: {safe}\n\n"
+            answer_tokens.append(token)
+
+        if conflicts:
+            conflict_note = "\n\n⚠ Conflicts detected: " + "; ".join(conflicts)
+            yield f"data: {conflict_note.replace(chr(10), chr(92)+'n')}\n\n"
+
+        yield "data: [DONE]\n\n"
+
+        full_answer = "".join(answer_tokens).strip()
+        if full_answer:
+            history.append({"role": "user",      "content": question})
+            history.append({"role": "assistant", "content": full_answer[:600]})
+            _chat_history[f"multi_{SESSION_ID}"] = history[-20:]
+
+    return StreamingResponse(generate(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache",
+                                      "X-Accel-Buffering": "no"})
+
+
+@app.post("/multi/clear")
+async def multi_clear():
+    """Clear the multi-doc collection."""
+    _multi_collections.pop(SESSION_ID, None)
+    _chat_history.pop(f"multi_{SESSION_ID}", None)
+    return JSONResponse({"success": True})
+
+
+
+SESSION_ID = "default"
+
+
+@app.get("/draft/templates")
+async def draft_templates():
+    return JSONResponse({"templates": get_template_list()})
+
+
+@app.get("/draft/fields/{template_id}")
+async def draft_fields(template_id: str):
+    try:
+        return JSONResponse(get_template_fields(template_id))
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.post("/draft/generate")
+async def draft_generate(request: Request):
+    try:
+        body        = await request.json()
+        template_id = body.get("template_id", "nda")
+        fields      = body.get("fields", {})
+        fmt         = body.get("format", "docx")
+        content_txt = draft_document(template_id, fields)
+        if fmt == "docx":
+            out_path = save_draft_docx(content_txt, template_id)
+        else:
+            out_path = save_draft(content_txt, template_id)
+        filename = Path(out_path).name
+        _log_audit("draft_generate", template_id, True)
+        return JSONResponse({"success": True, "content": content_txt,
+                             "output": out_path, "filename": filename})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/multi/add")
+async def multi_add(file: UploadFile = File(...)):
+    try:
+        safe_name = Path(file.filename).name
+        save_path = INPUT_DIR / safe_name
+        with open(save_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        full_text = read_full_text(str(save_path))
+        _doc_cache[str(save_path)] = full_text
+        if SESSION_ID not in _multi_collections:
+            _multi_collections[SESSION_ID] = DocCollection()
+        add_document(_multi_collections[SESSION_ID], safe_name, full_text)
+        summary = get_collection_summary(_multi_collections[SESSION_ID])
+        return JSONResponse({"success": True, "file_name": safe_name, "collection": summary})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.get("/multi/status")
+async def multi_status():
+    if SESSION_ID not in _multi_collections:
+        return JSONResponse({"count": 0, "names": [], "total_words": 0})
+    return JSONResponse(get_collection_summary(_multi_collections[SESSION_ID]))
+
+
+@app.post("/multi/chat-stream")
+async def multi_chat_stream(question: str = Form(...)):
+    if not is_ollama_running():
+        async def err():
+            yield "data: Ollama is not running.\n\n"
+        return StreamingResponse(err(), media_type="text/event-stream")
+    collection = _multi_collections.get(SESSION_ID)
+    if not collection or not collection.docs:
+        async def err():
+            yield "data: No documents loaded. Add documents first.\n\n"
+        return StreamingResponse(err(), media_type="text/event-stream")
+    context  = get_multi_context(collection, question)
+    history  = _chat_history.get(f"multi_{SESSION_ID}", [])
+    def generate():
+        answer_tokens = []
+        for token in stream_chat_with_history(context, history, question):
+            safe = token.replace("\n", "\\n")
+            yield f"data: {safe}\n\n"
+            answer_tokens.append(token)
+        yield "data: [DONE]\n\n"
+        full_answer = "".join(answer_tokens).strip()
+        if full_answer:
+            history.append({"role": "user",      "content": question})
+            history.append({"role": "assistant", "content": full_answer[:600]})
+            _chat_history[f"multi_{SESSION_ID}"] = history[-20:]
+    return StreamingResponse(generate(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.post("/multi/clear")
+async def multi_clear():
+    _multi_collections.pop(SESSION_ID, None)
+    _chat_history.pop(f"multi_{SESSION_ID}", None)
+    return JSONResponse({"success": True})
+
+
 @app.post("/chat-reset")
 async def chat_reset(file_path: str = Form(...)):
-    """Clear conversation history — keep document index."""
     key = str(Path(file_path))
     _chat_history.pop(key, None)
     alt = str(INPUT_DIR / Path(file_path).name)
@@ -371,7 +740,6 @@ async def chat_reset(file_path: str = Form(...)):
 
 @app.post("/execute")
 async def execute(file_path: str = Form(...), action: str = Form("summarize")):
-    """Save action result to file (for download)."""
     result = handle_file(file_path, action)
     result["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     _log_audit(action, file_path, result["success"])
@@ -406,12 +774,11 @@ async def debug_chat(file_path: str = ""):
     full_path = _resolve_path(file_path) if file_path else None
     input_files = [str(f) for f in INPUT_DIR.iterdir()] if INPUT_DIR.exists() else []
     key = str(full_path) if full_path else ""
-    idx = _doc_index.get(key)
+    cached = key in _doc_cache
     return JSONResponse({
-        "ollama_running": is_ollama_running(),
-        "models": list_models(),
-        "file_path_received": file_path,
-        "file_exists": full_path.exists() if full_path else False,
-        "files_in_input_dir": input_files,
-        "index_stats": get_stats(idx) if idx else None,
+        "ollama_running":   is_ollama_running(),
+        "models":           list_models(),
+        "file_cached":      cached,
+        "doc_chars":        len(_doc_cache.get(key, "")),
+        "files_in_input":   input_files,
     })

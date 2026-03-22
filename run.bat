@@ -13,9 +13,15 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Install dependencies
-echo  Installing dependencies...
-pip install -r requirements.txt -q
+:: Only install if fastapi is missing
+python -c "import fastapi" >nul 2>&1
+if errorlevel 1 (
+    echo  Installing dependencies for the first time...
+    pip install -r requirements.txt -q
+    echo  Done.
+) else (
+    echo  Dependencies already installed.
+)
 
 :: Create workspace folders
 if not exist "workspace\input" mkdir workspace\input

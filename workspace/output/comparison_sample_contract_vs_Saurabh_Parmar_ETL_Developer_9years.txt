@@ -1,0 +1,26 @@
+============================================
+CONTRACT COMPARISON REPORT
+============================================
+Document A : sample_contract.txt
+Document B : Saurabh_Parmar_ETL_Developer_9years.pdf
+Risk level : HIGH
+
+Risk level: HIGH. Key changes: governing law changed — significant legal implications; 3 new risk clause(s) added.
+
+⚠  GOVERNING LAW CHANGED
+   A: India
+   B: Not specified
+
+NEW RISKS IN Saurabh_Parmar_ETL_Developer_9years.pdf (3)
+  ⚠  Optimize the estimated hours for assignments to ensure the timely delivery of the enhancements.
+  ⚠  Coordinate with project teams for KT, lift and shift activities and successful warranty periods for smooth transitions to support team.
+  ⚠  Client: AirCanada Mumbai, IN | Aug ’15 – Apr’ 20 Supervising the activities of project members for prioritizing assigned tasks & delivering assignments.
+
+RISKS REMOVED FROM sample_contract.txt (5)
+  ✓  LTD., a company incorporated under the Companies Act, 2013, having its registered office at 4th Floor, Tower B, Cyber City, Gurugram, Haryana 122002, India (hereinafter referred to as "Client" or "ACM
+  ✓  Client and Vendor are sometimes referred to individually as a "Party" and collectively as the "Parties." RECITALS WHEREAS, Client desires to engage Vendor to develop certain software applications and 
+  ✓  1.2 "Intellectual Property Rights" means all patents, copyrights, trademarks, trade secrets, moral rights, and any other intellectual or industrial property rights, whether registered or unregistered,
+  ✓  1.3 "Confidential Information" means any and all non-public information disclosed by either Party to the other, whether in oral, written, electronic, or any other form, that is designated as confident
+  ✓  1.10 "Force Majeure Event" means any event beyond a Party's reasonable control, including but not limited to acts of God, natural disasters, war, terrorism, riots, embargoes, acts of civil or military
+
+============================================

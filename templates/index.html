@@ -155,6 +155,13 @@
         </svg>
         Memory
       </button>
+      <button class="nav-item" onclick="showPage('draft', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" stroke-linecap="round">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+        Draft doc
+      </button>
+
     </nav>
 
     <div class="sidebar-footer">
@@ -176,7 +183,7 @@
       <div class="workspace">
         <!-- Drop zone -->
         <div class="dropzone" id="dropzone">
-          <input type="file" id="file-input" accept=".txt,.pdf,.docx,.md" onchange="handleFileSelect(this)" />
+          <input type="file" id="file-input" accept=".txt,.pdf,.docx,.md" multiple onchange="handleFileSelect(this)" />
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="1.5" stroke-linecap="round" style="margin-bottom:10px">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
@@ -185,17 +192,20 @@
           <div style="font-size:12px;color:var(--text-muted)">.txt · .pdf · .docx · .md</div>
         </div>
 
-        <!-- File loaded state (hidden until file uploaded) -->
+        <!-- Files loaded bar -->
         <div id="file-loaded-bar" style="display:none;background:var(--surface);border:1px solid var(--green);border-radius:var(--radius);padding:12px 16px;">
-          <div class="file-info">
-            <div>
-              <div class="file-name">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                <span id="loaded-filename">—</span>
-              </div>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+            <div style="flex:1">
+              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px" id="file-tags"></div>
               <div class="file-meta" id="loaded-meta">—</div>
             </div>
-            <button class="file-change" onclick="changeFile()">Change file</button>
+            <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
+              <label style="font-size:11px;color:var(--accent);cursor:pointer;padding:3px 8px;border:1px solid rgba(124,106,247,0.3);border-radius:6px;background:var(--accent-dim)">
+                + Add file
+                <input type="file" accept=".txt,.pdf,.docx,.md" multiple style="display:none" onchange="addMoreFiles(this)"/>
+              </label>
+              <button class="file-change" onclick="changeFile()">Change</button>
+            </div>
           </div>
         </div>
 
@@ -209,8 +219,43 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             Legal Review
           </button>
+          <button class="action-chip" id="chip-clauses" onclick="runAction('clauses')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Extract Clauses
+          </button>
+          <button class="action-chip" id="chip-deadlines" onclick="runAction('deadlines')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Track Deadlines
+          </button>
+          <button class="action-chip" id="chip-report" onclick="runAction('report')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            Export Report
+          </button>
+          <button class="action-chip" id="chip-compare" onclick="showComparePanel()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+            Compare
+          </button>
+          <label class="action-chip" id="chip-multi" title="Add more documents for multi-doc mode" style="cursor:pointer;position:relative">
+            <input type="file" accept=".txt,.pdf,.docx,.md" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;" onchange="addMoreFiles(this)"/>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            + Add doc
+          </label>
           <button class="action-chip" style="margin-left:auto;opacity:0.5" id="turn-counter">0 turns</button>
           <button class="action-chip" onclick="resetChat()" style="color:var(--text-muted)">↺ New chat</button>
+        </div>
+
+        <!-- Compare panel -->
+        <div id="compare-panel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:8px;">
+          <div style="font-size:13px;font-weight:500;margin-bottom:12px;color:var(--text)">Compare two contracts</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Current file is Contract A. Upload Contract B:</div>
+          <div style="position:relative;border:1.5px dashed var(--border-hover);border-radius:8px;padding:12px 16px;text-align:center;cursor:pointer;margin-bottom:12px;">
+            <input type="file" id="compare-file-input" accept=".txt,.pdf,.docx,.md" style="position:absolute;inset:0;opacity:0;cursor:pointer;" onchange="handleCompareFile(this)"/>
+            <span id="compare-file-label" style="font-size:13px;color:var(--text-muted)">Drop Contract B here or click to browse</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="runCompare()" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;">Compare now</button>
+            <button onclick="document.getElementById('compare-panel').style.display='none'" style="padding:8px 16px;background:transparent;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text-muted);cursor:pointer;">Cancel</button>
+          </div>
         </div>
 
         <!-- Unified chat area -->
@@ -255,6 +300,26 @@
       <div id="memory-content"><div class="empty-state">Loading...</div></div>
     </div>
 
+
+    <!-- Draft page -->
+    <div id="page-draft" class="page" style="display:none">
+      <div class="page-header">
+        <div class="page-title">Draft a document</div>
+        <div class="page-sub">Generate a first draft instantly — review before use.</div>
+      </div>
+      <div id="draft-templates" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px"></div>
+      <div id="draft-form" style="display:none">
+        <div style="font-size:13px;font-weight:500;margin-bottom:12px;color:var(--text)" id="draft-form-title"></div>
+        <div id="draft-fields" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px"></div>
+        <div style="display:flex;gap:8px">
+          <button onclick="generateDraft('docx')" style="padding:9px 20px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer">Generate DOCX</button>
+          <button onclick="generateDraft('txt')" style="padding:9px 20px;background:transparent;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text-muted);cursor:pointer">Generate TXT</button>
+          <button onclick="document.getElementById('draft-form').style.display='none'" style="padding:9px 16px;background:transparent;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text-muted);cursor:pointer">Back</button>
+        </div>
+        <div id="draft-result" style="margin-top:14px"></div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -291,85 +356,134 @@
     if (btn) btn.classList.add('active');
     if (name === 'log')    loadLog();
     if (name === 'memory') loadMemory();
+    if (name === 'draft')  loadDraftTemplates();
   }
 
   // ── File handling ──────────────────────────────────────────────────────────
+  let loadedFiles = [];
+
   const dz = document.getElementById('dropzone');
   dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
   dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
   dz.addEventListener('drop', e => {
     e.preventDefault(); dz.classList.remove('drag');
-    if (e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files.length) uploadFiles(Array.from(e.dataTransfer.files));
   });
 
   function handleFileSelect(input) {
-    if (input.files.length) uploadFile(input.files[0]);
+    if (input.files.length) uploadFiles(Array.from(input.files));
   }
 
-  async function uploadFile(file) {
-    const form = new FormData();
-    form.append('file', file);
-    form.append('action', 'summarize');
-    try {
-      const res  = await fetch('/upload', { method: 'POST', body: form });
-      const plan = await res.json();
-      if (!plan.allowed) { addMessage('system', 'File type not supported. Use PDF, DOCX, TXT, or MD.'); return; }
+  async function addMoreFiles(input) {
+    if (input.files.length) await uploadFiles(Array.from(input.files), true);
+  }
 
-      currentFilePath = plan.file_path;
-      turnCount = 0;
-
-      // Show file bar, hide dropzone
-      document.getElementById('dropzone').style.display = 'none';
-      document.getElementById('file-loaded-bar').style.display = 'block';
-      document.getElementById('actions-bar').style.display = 'flex';
-      document.getElementById('loaded-filename').textContent = file.name;
-      const info = plan.file_info || {};
-      const stats = plan.index_stats || {};
-      const chunksInfo = stats.chunks ? ` · ${stats.chunks} chunks indexed` : '';
-      const pagesInfo  = stats.total_pages ? ` · ${stats.total_pages} pages` : '';
-      document.getElementById('loaded-meta').textContent =
-        (info.size_kb ? info.size_kb + ' KB' : '') +
-        (file.name.split('.').pop().toUpperCase() ? ' · ' + file.name.split('.').pop().toUpperCase() : '') +
-        pagesInfo + chunksInfo + ' · full doc indexed ✓';
-
-      // Enable chat
-      const input = document.getElementById('chat-input');
-      input.disabled = false;
-      input.placeholder = 'Ask anything about ' + file.name + ' ...';
-      document.getElementById('btn-send').disabled = false;
-
-      // Clear messages and welcome
+  async function uploadFiles(files, append = false) {
+    if (!append) {
+      loadedFiles = [];
       document.getElementById('chat-messages').innerHTML = '';
-      document.getElementById('chat-empty') && document.getElementById('chat-empty').remove();
-      addMessage('system', '📄 ' + file.name + ' loaded — ask me anything, or use the buttons above to summarize or run a legal review.');
+      await fetch('/multi/clear', { method: 'POST' });
+    }
 
-      // Reset chat history on server
-      const rf = new FormData(); rf.append('file_path', currentFilePath);
-      await fetch('/chat-reset', { method: 'POST', body: rf });
+    for (const file of files) {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('action', 'summarize');
+      try {
+        const res  = await fetch('/upload', { method: 'POST', body: form });
+        const plan = await res.json();
+        if (!plan.allowed) { addMessage('system', 'Cannot load ' + file.name + ' — unsupported type.'); continue; }
+        const info = plan.file_info || {};
+        loadedFiles.push({ name: file.name, path: plan.file_path,
+          words: info.words || 0, pages: info.pages || 1, size_kb: info.size_kb || 0 });
+        // Add each file to multi collection
+        const mf = new FormData(); mf.append('file', file);
+        await fetch('/multi/add', { method: 'POST', body: mf });
+      } catch(err) { addMessage('system', 'Upload failed: ' + err.message); }
+    }
 
-    } catch (err) { addMessage('system', 'Upload failed: ' + err.message); }
+    if (!loadedFiles.length) return;
+
+    currentFilePath = loadedFiles[0].path;
+    multiMode       = loadedFiles.length > 1;
+    turnCount       = 0;
+
+    document.getElementById('dropzone').style.display        = 'none';
+    document.getElementById('file-loaded-bar').style.display = 'block';
+    document.getElementById('actions-bar').style.display     = 'flex';
+    document.getElementById('chip-multi').classList.toggle('running', multiMode);
+
+    renderFileTags();
+    const totalWords = loadedFiles.reduce((s,f) => s + f.words, 0);
+    document.getElementById('loaded-meta').textContent =
+      loadedFiles.length + ' file' + (loadedFiles.length > 1 ? 's' : '') +
+      ' · ' + totalWords.toLocaleString() + ' words' +
+      (multiMode ? ' · multi-doc active' : ' · fully loaded ✓');
+
+    const chatInput = document.getElementById('chat-input');
+    chatInput.disabled = false;
+    chatInput.placeholder = multiMode
+      ? 'Ask across all ' + loadedFiles.length + ' documents...'
+      : 'Ask anything about ' + loadedFiles[0].name + '...';
+    document.getElementById('btn-send').disabled = false;
+
+    document.getElementById('chat-messages').innerHTML = '';
+    const names = loadedFiles.map(f => f.name).join(', ');
+    addMessage('system', '📄 ' + names + ' loaded.' + (multiMode ? ' Multi-doc mode active.' : ''));
+    const rf = new FormData(); rf.append('file_path', currentFilePath);
+    await fetch('/chat-reset', { method: 'POST', body: rf });
+  }
+
+  function renderFileTags() {
+    const tags = document.getElementById('file-tags');
+    tags.innerHTML = loadedFiles.map((f, i) =>
+      '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--accent-dim);border:0.5px solid rgba(124,106,247,0.3);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--accent)">' +
+      '\uD83D\uDCC4 ' + f.name +
+      '<button onclick="removeFile(' + i + ')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;padding:0;margin-left:2px">\u2715</button>' +
+      '</span>'
+    ).join('');
+  }
+
+  async function removeFile(index) {
+    loadedFiles.splice(index, 1);
+    if (!loadedFiles.length) { changeFile(); return; }
+    currentFilePath = loadedFiles[0].path;
+    multiMode = loadedFiles.length > 1;
+    document.getElementById('chip-multi').classList.toggle('running', multiMode);
+    renderFileTags();
+    const tw = loadedFiles.reduce((s,f)=>s+f.words,0);
+    document.getElementById('loaded-meta').textContent =
+      loadedFiles.length + ' file(s) · ' + tw.toLocaleString() + ' words' +
+      (multiMode ? ' · multi-doc active' : ' · fully loaded ✓');
+    document.getElementById('chat-input').placeholder =
+      multiMode ? 'Ask across all documents...' : 'Ask about ' + loadedFiles[0].name + '...';
+    addMessage('system', 'File removed. ' + loadedFiles.length + ' file(s) remaining.');
   }
 
   function changeFile() {
-    currentFilePath = null;
-    document.getElementById('dropzone').style.display = 'block';
+    loadedFiles = []; currentFilePath = null; turnCount = 0; multiMode = false;
+    document.getElementById('dropzone').style.display        = 'block';
     document.getElementById('file-loaded-bar').style.display = 'none';
-    document.getElementById('actions-bar').style.display = 'none';
+    document.getElementById('actions-bar').style.display     = 'none';
+    document.getElementById('chip-multi').classList.remove('running');
     document.getElementById('chat-messages').innerHTML =
       '<div class="chat-empty" id="chat-empty"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Upload a file to get started</span></div>';
-    const input = document.getElementById('chat-input');
-    input.disabled = true; input.placeholder = 'Upload a file first...';
+    const inp = document.getElementById('chat-input');
+    inp.disabled = true; inp.placeholder = 'Upload a file first...';
     document.getElementById('btn-send').disabled = true;
     document.getElementById('turn-counter').textContent = '0 turns';
-    turnCount = 0;
-    // Reset file input
     document.getElementById('file-input').value = '';
+    fetch('/multi/clear', { method: 'POST' });
   }
 
   // ── Quick actions (summarize / legal review) ───────────────────────────────
   async function runAction(action) {
     if (!currentFilePath || isStreaming) return;
-    const chip = document.getElementById('chip-' + action.replace('_review', '').replace('_', '-'));
+    const chipIdMap = {
+      summarize: 'chip-summarize', legal_review: 'chip-legal',
+      clauses: 'chip-clauses', deadlines: 'chip-deadlines', report: 'chip-report'
+    };
+    const chip = document.getElementById(chipIdMap[action] || 'chip-' + action);
     const labels = { summarize: 'Summarize', legal_review: 'Legal Review' };
 
     isStreaming = true;
@@ -379,6 +493,38 @@
     const bubble = addMessage('ai', '<span class="spinner"></span>');
 
     try {
+      // Handle non-streaming actions
+      if (action === 'clauses' || action === 'deadlines' || action === 'report') {
+        const endpointMap = {
+          clauses:   '/extract-clauses',
+          deadlines: '/track-deadlines',
+          report:    '/generate-report',
+        };
+        const form = new FormData();
+        form.append('file_path', currentFilePath);
+        if (action === 'clauses') form.append('clause_type', 'all');
+
+        const res    = await fetch(endpointMap[action], { method: 'POST', body: form });
+        const result = await res.json();
+
+        if (result.success) {
+          let html = result.report
+            ? result.report.replace(/\n/g, '<br>')
+            : result.message || 'Done.';
+          if (result.filename) {
+            html += `<br><br><a class="download-link" href="/download/${result.filename}">↓ Download ${result.filename}</a>`;
+          }
+          bubble.innerHTML = html;
+        } else {
+          bubble.innerHTML = '✗ ' + result.error;
+        }
+        turnCount++; updateTurnCounter();
+        isStreaming = false;
+        if (chip) chip.classList.remove('running');
+        return;
+      }
+
+      // Streaming actions
       let endpoint;
       if (action === 'legal_review') endpoint = '/legal-stream';
       else if (action === 'summarize') endpoint = '/summarize-stream';
@@ -460,12 +606,14 @@
         bubble.innerHTML = '<span class="spinner"></span> <span style="font-size:11px;color:var(--text-muted)">' + elapsed + 's</span>';
     }, 1000);
 
+    // In multi-doc mode, use multi endpoint; otherwise single doc
+    const endpoint = multiMode ? '/multi/chat-stream' : '/chat-stream';
     const form = new FormData();
-    form.append('file_path', currentFilePath);
+    if (!multiMode) form.append('file_path', currentFilePath);
     form.append('question', q);
 
     try {
-      const res = await fetch('/chat-stream', { method: 'POST', body: form });
+      const res = await fetch(endpoint, { method: 'POST', body: form });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '', answer = '';
@@ -500,6 +648,57 @@
       document.getElementById('btn-send').disabled = false;
       input.focus();
     }
+  }
+
+  // ── Compare ────────────────────────────────────────────────────────────────
+  let compareFilePath = null;
+
+  function showComparePanel() {
+    if (!currentFilePath) { addMessage('system', 'Upload a file first.'); return; }
+    const panel = document.getElementById('compare-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  }
+
+  async function handleCompareFile(input) {
+    if (!input.files.length) return;
+    const form = new FormData();
+    form.append('file', input.files[0]);
+    form.append('action', 'summarize');
+    const res  = await fetch('/upload', { method: 'POST', body: form });
+    const plan = await res.json();
+    compareFilePath = plan.file_path;
+    document.getElementById('compare-file-label').textContent = '📄 ' + input.files[0].name + ' loaded';
+  }
+
+  async function runCompare() {
+    if (!currentFilePath || !compareFilePath) {
+      addMessage('system', 'Please upload both contracts first.');
+      return;
+    }
+    document.getElementById('compare-panel').style.display = 'none';
+    const bubble = addMessage('ai', '<span class="spinner"></span> Comparing contracts...');
+
+    const form = new FormData();
+    form.append('file_path_a', currentFilePath);
+    form.append('file_path_b', compareFilePath);
+
+    try {
+      const res    = await fetch('/compare', { method: 'POST', body: form });
+      const result = await res.json();
+      if (result.success) {
+        const r = result.result;
+        let html = '<strong>Contract Comparison</strong><br>';
+        html += `Risk level: <strong style="color:${r.risk_level==='HIGH'?'var(--red)':r.risk_level==='MEDIUM'?'var(--amber)':'var(--green)'}">${r.risk_level}</strong><br><br>`;
+        html += result.report.replace(/\n/g, '<br>');
+        if (result.filename) {
+          html += `<br><a class="download-link" href="/download/${result.filename}">↓ Download comparison report</a>`;
+        }
+        bubble.innerHTML = html;
+      } else {
+        bubble.innerHTML = '✗ ' + result.error;
+      }
+    } catch(err) { bubble.innerHTML = 'Error: ' + err.message; }
+    turnCount++; updateTurnCounter();
   }
 
   async function resetChat() {
@@ -550,7 +749,96 @@
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   }
 
-  // ── Audit log ──────────────────────────────────────────────────────────────
+
+  // ── Draft assistant ────────────────────────────────────────────────────────
+  let currentTemplateId = null;
+
+  async function loadDraftTemplates() {
+    const res       = await fetch('/draft/templates');
+    const data      = await res.json();
+    const container = document.getElementById('draft-templates');
+    container.innerHTML = data.templates.map(t => `
+      <div onclick="selectTemplate('${t.id}', this)"
+        style="background:var(--surface);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:border-color 0.15s;"
+        onmouseover="this.style.borderColor='var(--border-hover)'"
+        onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">${t.name}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${t.fields.length} fields required</div>
+      </div>`).join('');
+  }
+
+  async function selectTemplate(id, el) {
+    document.querySelectorAll('#draft-templates > div').forEach(d =>
+      d.style.borderColor = 'var(--border)');
+    el.style.borderColor = 'var(--accent)';
+    currentTemplateId = id;
+
+    const res  = await fetch('/draft/fields/' + id);
+    const data = await res.json();
+
+    document.getElementById('draft-form-title').textContent = 'Fill in details for: ' + data.name;
+    const fieldsDiv = document.getElementById('draft-fields');
+        const isDateField = f => f.includes('date');
+    fieldsDiv.innerHTML = data.fields.map(f => `
+      <div>
+        <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">
+          ${f.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}
+          ${isDateField(f) ? '<span style="color:var(--accent);font-size:11px"> (dd/mm/yyyy)</span>' : ''}
+          ${!isDateField(f) && data.defaults[f] ? '<span style="color:var(--text-dim)"> (default: '+data.defaults[f]+')</span>' : ''}
+        </label>
+        ${isDateField(f)
+          ? `<input id="field_${f}" type="date"
+               style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;cursor:pointer"
+               onchange="formatDateField(this)"/>`
+          : `<input id="field_${f}" type="text" placeholder="${data.defaults[f] || f}"
+               style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none"/>`
+        }
+      </div>`).join('');
+    document.getElementById('draft-form').style.display = 'block';
+    document.getElementById('draft-result').innerHTML = '';
+  }
+
+  function storeDateFormatted(input) {
+    if (!input.value) return;
+    const [y, m, d] = input.value.split('-');
+    const months = ['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+    input.dataset.formatted = months[parseInt(m)-1] + ' ' + parseInt(d) + ', ' + y;
+    input.style.borderColor = 'var(--green)';
+  }
+
+  async function generateDraft(fmt) {
+    if (!currentTemplateId) return;
+    const res1  = await fetch('/draft/fields/' + currentTemplateId);
+    const tdata = await res1.json();
+    const fields = {};
+    tdata.fields.forEach(f => {
+      const el = document.getElementById('field_' + f);
+      if (el && el.value) {
+        // Use formatted date string if available, otherwise raw value
+        fields[f] = el.dataset.formatted || el.value;
+      }
+    });
+
+    const res = await fetch('/draft/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({template_id: currentTemplateId, fields, format: fmt})
+    });
+    const result = await res.json();
+    const div = document.getElementById('draft-result');
+    if (result.success) {
+      div.innerHTML = `
+        <div style="background:var(--green-dim);border:1px solid rgba(62,207,126,0.2);border-radius:8px;padding:12px 16px;">
+          <div style="color:var(--green);font-size:13px;font-weight:500;margin-bottom:6px">✓ Draft generated</div>
+          <a class="download-link" href="/download/${result.filename}">↓ Download ${result.filename}</a>
+        </div>`;
+    } else {
+      div.innerHTML = `<div style="color:var(--red);font-size:13px">✗ ${result.error}</div>`;
+    }
+  }
+
+    // ── Audit log ──────────────────────────────────────────────────────────────
   async function loadLog() {
     const c = document.getElementById('log-content');
     try {

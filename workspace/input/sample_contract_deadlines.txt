@@ -1,0 +1,76 @@
+============================================
+DEADLINE & OBLIGATION TRACKER
+Source    : sample_contract.txt
+Generated : 2026-03-22 20:51
+Parties   : ACME TECHNOLOGIES PVT. LTD, NEXUS SOFTWARE SOLUTIONS LLP
+============================================
+
+KEY DATES (7 found)
+──────────────────────────────
+☐  December 31, 2025
+    Context: SCHEDULES
+
+SCHEDULE A — STATEMENT OF WORK
+
+The Project scope includes development of an integrated ERP system comprising...
+
+☐  February 15, 2025
+    Context: SCHEDULES
+
+SCHEDULE A — STATEMENT OF WORK
+
+The Project scope includes development of an integrated ERP system comprising...
+
+☐  January 15, 2025
+    Context: SOFTWARE DEVELOPMENT AND SERVICES AGREEMENT
+
+This Software Development and Services Agreement ("Agreement") is entered i...
+
+☐  June 30, 2025
+    Context: SCHEDULES
+
+SCHEDULE A — STATEMENT OF WORK
+
+The Project scope includes development of an integrated ERP system comprising...
+
+☐  March 15, 2025
+    Context: SCHEDULES
+
+SCHEDULE A — STATEMENT OF WORK
+
+The Project scope includes development of an integrated ERP system comprising...
+
+☐  November 15, 2025
+    Context: SCHEDULES
+
+SCHEDULE A — STATEMENT OF WORK
+
+The Project scope includes development of an integrated ERP system comprising...
+
+☐  September 30, 2025
+    Context: SCHEDULES
+
+SCHEDULE A — STATEMENT OF WORK
+
+The Project scope includes development of an integrated ERP system comprising...
+
+OBLIGATIONS (8 found)
+──────────────────────────────
+☐  1. 1.5 "Milestone" means each phase of the Project as set forth in the Project Timeline in Schedule B, the completion of which triggers a payment obligation.
+
+☐  2. 1.7 "Acceptance Criteria" means the functional and performance requirements that the Deliverables must satisfy as specified in Schedule C.
+
+☐  3. Vendor shall perform the software development and related services ("Services") as described in Schedule A (Statement of Work) attached hereto.
+
+☐  4. Vendor shall provide all personnel, equipment, software tools, and resources necessary to perform the Services, unless otherwise agreed in writing.
+
+☐  5. Vendor shall designate a qualified project manager ("Vendor PM") who shall serve as the primary point of contact for Client.
+
+☐  6. The Vendor PM shall be responsible for coordinating all aspects of the Project, managing Vendor's personnel, and providing regular status updates to Client.
+
+☐  7. Vendor shall not replace the Vendor PM without providing Client with at least fifteen (15) Business Days' prior written notice and obtaining Client's written approval, which shall not be unreasonably 
+
+☐  8. Vendor shall not remove, replace, or reassign Key Personnel without Client's prior written consent.
+
+============================================
+TIP: Print this checklist and tick off items as completed.

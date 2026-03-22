@@ -30,9 +30,12 @@ class LegalExtraction:
 
 # Party patterns
 _PARTY_PATTERNS = [
-    r'(?:between|by and between|BETWEEN)\s+([A-Z][A-Za-z\s,\.]+?)(?:\s+and\s+|\s+\(")',
-    r'"([A-Z][A-Za-z\s]+?)"\s*\((?:the\s+)?"?(?:Company|Client|Vendor|Contractor|Employee|Employer|Party|Licensor|Licensee)',
-    r'(?:PARTIES?|party|parties)[\s:]+([A-Z][A-Za-z\s,\.Ltd\.Inc\.]+?)(?:\n|,|\sand\s)',
+    # Matches "COMPANY NAME, a company..." or "COMPANY NAME, a limited..."
+    r'([A-Z][A-Z\s]+(?:LTD|LLC|LLP|INC|CORP|PVT|LIMITED|SOLUTIONS|TECHNOLOGIES|SERVICES|HOLDINGS)\.?\s*(?:PVT\.\s*LTD\.?|LLP\.?)?)\s*,\s*a\s+(?:company|limited|corporation|partnership|pvt)',
+    # Matches name before "(hereinafter referred to as"
+    r'([A-Z][A-Z\s\.,]+?)\s*\(hereinafter\s+referred\s+to\s+as',
+    # Quoted company name with party role
+    r'"([A-Z][A-Za-z\s]+?)"\s*\((?:the\s+)?"?(?:Company|Client|Vendor|Contractor|Employee|Employer)',
 ]
 
 # Date patterns
@@ -104,7 +107,16 @@ def _extract_parties(text: str) -> list[str]:
             name = _clean(match.group(1))
             if 5 < len(name) < 80:
                 parties.add(name)
-    return sorted(parties)[:6]   # cap at 6
+    # Clean up party names — remove leading "AND" word prefix
+    import re as _re
+    cleaned = []
+    for p in sorted(parties)[:6]:
+        p = p.strip()
+        p = _re.sub(r'^AND\s+', '', p, flags=_re.IGNORECASE)
+        p = p.strip(" ,.")
+        if len(p) > 4:
+            cleaned.append(p)
+    return cleaned
 
 
 def _extract_dates(text: str) -> list[str]:
@@ -164,15 +176,16 @@ def _detect_contract_type(text: str) -> str:
 
 def _detect_governing_law(text: str) -> Optional[str]:
     patterns = [
-        r'governed by (?:the laws? of )?([A-Z][A-Za-z\s]+?)(?:\.|,|\n)',
-        r'laws? of (?:the (?:State|Province) of )?([A-Z][A-Za-z\s]+?)(?:\.|,|\n)',
-        r'jurisdiction of ([A-Z][A-Za-z\s]+?)(?:\.|,|\n)',
+        r'laws\s+of\s+(India|England|Wales|[A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\b',
+        r'governed\s+by\s+(?:the\s+)?laws?\s+of\s+(?:the\s+)?(?:State\s+of\s+)?([A-Z][A-Za-z\s]{2,25}?)(?:\.|,|\s+without)',
+        r'seat\s+and\s+venue\s+of\s+arbitration\s+shall\s+be\s+([A-Z][A-Za-z\s]{2,25}?)(?:\.|,)',
+        r'exclusive\s+jurisdiction\s+of\s+the\s+courts?\s+in\s+([A-Z][A-Za-z\s]{2,25}?)(?:\.|,)',
     ]
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             result = _clean(match.group(1))
-            if len(result) < 60:
+            if 2 < len(result) < 60:
                 return result
     return None
 
