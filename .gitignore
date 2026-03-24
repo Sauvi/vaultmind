@@ -7,4 +7,5 @@ workspace/*.json
 static/
 poppler_path.txt
 tools/
-.env
+.envmemory.json 
+research_library.py 
