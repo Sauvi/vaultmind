@@ -1,8 +1,12 @@
 """
-ollama_engine.py — VaultMind v0.7
+ollama_engine.py — VaultMind v1.2
 Simplified direct approach — send full document to AI.
 phi3.5 supports large context windows — use them.
-No chunking, no retrieval, no missed content.
+
+UPGRADE in v1.2:
+  Chat now uses real semantic RAG (rag_engine.py) instead of keyword _smart_extract().
+  "exit the agreement" now correctly finds "termination" clauses.
+  Summarisation uses RAG get_summary_context() for long documents.
 """
 
 import urllib.request
@@ -13,11 +17,9 @@ from typing import Generator
 OLLAMA_URL    = "http://localhost:11434"
 DEFAULT_MODEL = "phi3.5"
 
-# Full context window — phi3.5 supports up to 128k
-# We use 12000 tokens safely on 8GB RAM (covers ~48000 chars)
 _BASE_OPTIONS = {
     "temperature":    0.1,
-    "num_ctx":        4096,   # safe for 8GB RAM
+    "num_ctx":        4096,
     "num_thread":     4,
     "repeat_penalty": 1.1,
 }
@@ -109,18 +111,51 @@ def _stream(prompt: str, model: str, num_predict: int = 500) -> Generator[str, N
         yield f"\n[Error: {e}]"
 
 
-# ── Smart truncation — only if doc exceeds safe limit ────────────────────────
+# ── Context preparation ───────────────────────────────────────────────────────
+
+def _prepare_context_for_chat(document_text: str, question: str,
+                               doc_index=None) -> tuple[str, bool]:
+    """
+    Get context for chat.
+    Priority:
+      1. Semantic RAG index (best — finds relevant chunks by meaning)
+      2. Keyword RAG index (fallback if semantic model not installed)
+      3. Smart keyword extraction (legacy fallback)
+
+    Returns (context_text, used_rag)
+    """
+    # Use RAG index if available
+    if doc_index is not None:
+        try:
+            from rag_engine import get_context
+            ctx = get_context(doc_index, question)
+            return ctx, True
+        except Exception as e:
+            print(f"[Engine] RAG retrieval failed: {e} — using keyword fallback")
+
+    # Legacy keyword extraction fallback
+    ctx = _smart_extract(document_text, question, max_chars=3000)
+    return ctx, False
+
+
+def _prepare_context_for_summary(document_text: str, doc_index=None) -> str:
+    """Get context for summarisation — samples document evenly."""
+    if doc_index is not None:
+        try:
+            from rag_engine import get_summary_context
+            return get_summary_context(doc_index)
+        except Exception:
+            pass
+
+    # Fallback: head + tail of document
+    doc, _ = _prepare_doc(document_text)
+    return doc
+
 
 def _prepare_doc(text: str, max_chars: int = 3500) -> tuple[str, bool]:
-    """
-    Prepare document text for AI chat/summarize.
-    3500 chars ≈ 875 tokens — fast and safe on 8GB RAM.
-    Keeps first 60% + last 40% — parties at start, signatures/dates at end.
-    Legal review bypasses this entirely (uses pattern extraction instead).
-    """
+    """Legacy truncation for direct send (used when no RAG index)."""
     if len(text) <= max_chars:
         return text, False
-
     head = int(max_chars * 0.6)
     tail = max_chars - head
     truncated = (
@@ -131,44 +166,33 @@ def _prepare_doc(text: str, max_chars: int = 3500) -> tuple[str, bool]:
     return truncated, True
 
 
-
 def _smart_extract(text: str, question: str, max_chars: int = 3000) -> str:
     """
-    Extract the most relevant section of a document for a question.
-    Splits into paragraphs, scores each against question keywords,
-    returns the highest-scoring paragraphs up to max_chars.
-    Fast — pure Python, no AI needed.
+    Legacy keyword-based extraction (kept as fallback when no RAG index).
+    Scores paragraphs by word overlap with question.
     """
     import re
-    # Extract question keywords
     stop = {"the","a","an","is","are","was","were","what","how","who",
             "when","where","why","which","this","that","in","of","to",
             "and","or","for","with","do","does","did","can","will","me",
             "give","tell","show","find","please","my","your","its"}
     q_words = set(re.findall(r"\b[a-z]{3,}\b", question.lower())) - stop
 
-    # Split into paragraphs
     paragraphs = [p.strip() for p in re.split(r"\n{2,}", text) if p.strip()]
-
-    # Score each paragraph
-    scored = []
+    scored     = []
     for para in paragraphs:
         para_lower = para.lower()
-        score = sum(1 for w in q_words if w in para_lower)
+        score      = sum(1 for w in q_words if w in para_lower)
         scored.append((score, para))
 
     scored.sort(key=lambda x: x[0], reverse=True)
 
-    # Always include first paragraph (parties/intro) + top scoring ones
     result_parts = []
     total = 0
-
-    # First paragraph always included
     if paragraphs:
         result_parts.append(paragraphs[0])
         total += len(paragraphs[0])
 
-    # Add top scoring paragraphs
     for score, para in scored:
         if total >= max_chars:
             break
@@ -178,31 +202,30 @@ def _smart_extract(text: str, question: str, max_chars: int = 3000) -> str:
 
     return "\n\n".join(result_parts)
 
+
 # ── Prompt builders ───────────────────────────────────────────────────────────
 
-def _build_summary_prompt(text: str) -> str:
-    doc, truncated = _prepare_doc(text)
-    note = "\nNote: Document was truncated — showing start and end sections.\n" if truncated else ""
+def _build_summary_prompt(text: str, doc_index=None) -> str:
+    doc = _prepare_context_for_summary(text, doc_index)
+    note = "\nNote: Showing representative sections of the document.\n" if doc_index else ""
     return (
         "<|system|>\n"
-        "You are a precise document summarizer. Read the full document and "
+        "You are a precise document summariser. Read the provided document sections and "
         "provide a clear, accurate summary. Never add information not in the document.\n"
         "<|end|>\n"
         "<|user|>\n"
-        f"Summarize this document in 5 clear bullet points covering the key information:{note}\n\n"
+        f"Summarise this document in 5 clear bullet points covering the key information:{note}\n\n"
         f"{doc}\n"
         "<|end|>\n"
         "<|assistant|>\n"
     )
 
 
-def _build_chat_prompt(document: str, history: list[dict], question: str) -> str:
-    # Use smart extraction for chat — finds relevant sections for the question
-    doc = _smart_extract(document, question, max_chars=3000)
-    truncated = len(document) > 3000
-    note = "\nNote: Showing most relevant sections for your question.\n" if truncated else ""
+def _build_chat_prompt(document: str, history: list[dict], question: str,
+                       doc_index=None) -> str:
+    doc, used_rag = _prepare_context_for_chat(document, question, doc_index)
+    note = "\nNote: Showing the most relevant sections for your question.\n" if used_rag else ""
 
-    # Build conversation history (last 6 turns)
     recent = history[-6:] if len(history) > 6 else history
     history_text = ""
     for turn in recent:
@@ -228,7 +251,7 @@ def _build_chat_prompt(document: str, history: list[dict], question: str) -> str
 def _build_legal_prompt(extracted_context: str, contract_type: str) -> str:
     return (
         "<|system|>\n"
-        "You are a legal document analyst. Analyze the provided contract sections "
+        "You are a legal document analyst. Analyse the provided contract sections "
         "and give clear, professional insights. Use plain English.\n"
         "<|end|>\n"
         "<|user|>\n"
@@ -245,29 +268,32 @@ def _build_legal_prompt(extracted_context: str, contract_type: str) -> str:
 
 # ── Public functions ──────────────────────────────────────────────────────────
 
-def summarize(text: str, model: str = None) -> str:
+def summarize(text: str, model: str = None, doc_index=None) -> str:
     model = model or get_best_model()
-    return "".join(_stream(_build_summary_prompt(text), model, num_predict=500))
+    return "".join(_stream(_build_summary_prompt(text, doc_index), model, num_predict=500))
 
 
-def stream_summary(text: str, model: str = None) -> Generator[str, None, None]:
+def stream_summary(text: str, model: str = None,
+                   doc_index=None) -> Generator[str, None, None]:
     model = model or get_best_model()
-    yield from _stream(_build_summary_prompt(text), model, num_predict=500)
+    yield from _stream(_build_summary_prompt(text, doc_index), model, num_predict=500)
 
 
 def stream_chat_with_history(
     document_text: str,
     history: list[dict],
     question: str,
-    model: str = None
+    model: str = None,
+    doc_index=None,
 ) -> Generator[str, None, None]:
-    model = model or get_best_model()
-    prompt = _build_chat_prompt(document_text, history, question)
+    model  = model or get_best_model()
+    prompt = _build_chat_prompt(document_text, history, question, doc_index)
     yield from _stream(prompt, model, num_predict=600)
 
 
-def chat_with_document(document_text: str, question: str, model: str = None) -> str:
-    return "".join(stream_chat_with_history(document_text, [], question, model))
+def chat_with_document(document_text: str, question: str,
+                       model: str = None, doc_index=None) -> str:
+    return "".join(stream_chat_with_history(document_text, [], question, model, doc_index))
 
 
 def legal_analyze(prompt: str, model: str = None) -> str:

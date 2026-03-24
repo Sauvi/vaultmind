@@ -22,7 +22,11 @@ from ollama_engine import (
     stream_chat_with_history, stream_summary, stream_legal_analyze,
     get_best_model
 )
-from file_reader import read_document, read_full_text, SUPPORTED_EXTENSIONS
+from file_reader import (
+    read_document, read_full_text, read_full_text_with_meta,
+    SUPPORTED_EXTENSIONS, ocr_status
+)
+from rag_engine import index_document, get_stats as rag_get_stats, is_semantic_available
 from legal_extractor import extract_fast, build_ai_prompt, format_report
 from drafting import (
     get_template_list, get_template_fields,
@@ -32,20 +36,36 @@ from multi_doc import (
     DocCollection, add_document, get_multi_context,
     get_collection_summary, find_conflicts
 )
-from drafting import (
-    get_template_list, get_template_fields,
-    draft_document, save_draft, save_draft_docx,
-)
-from multi_doc import (
-    DocCollection, add_document, get_multi_context,
-    get_collection_summary, find_conflicts,
-)
 from features import (
     compare_contracts, format_comparison,
     extract_clauses, format_clauses,
     track_deadlines, format_deadlines,
     generate_report,
+    detect_ambiguity, format_ambiguity,
+    extract_timeline, format_timeline,
 )
+from clause_library import (
+    save_clause, get_all_clauses, search_clauses,
+    get_clause_by_id, delete_clause, update_clause,
+    library_stats, format_library_listing, format_clause_detail,
+    CLAUSE_CATEGORIES,
+)
+from doc_analyzer import (
+    defined_terms_map, format_defined_terms,
+    monetary_scanner, format_monetary,
+    cross_reference_checker, format_cross_references,
+    defined_term_usage_checker, format_term_usage,
+    redline_diff, format_redline_summary,
+    document_statistics, format_statistics,
+    signature_block_extractor, format_signature_blocks,
+    notice_requirements, format_notice_requirements,
+    termination_trigger_map, format_termination_triggers,
+    liability_cap_finder, format_liability_caps,
+    boilerplate_detector, format_boilerplate,
+    party_obligation_matrix, format_obligation_matrix,
+    run_full_analysis,
+)
+
 
 # ── Dirs ──────────────────────────────────────────────────────────────────────
 BASE_DIR     = Path(__file__).parent
@@ -63,6 +83,7 @@ _doc_cache:         dict[str, str]        = {}  # file_path → full clean text
 _doc_meta:          dict[str, dict]       = {}  # file_path → metadata
 _chat_history:      dict[str, list[dict]] = {}  # file_path → conversation
 _multi_collections: dict[str, object]     = {}  # session_id → DocCollection
+_rag_index:         dict[str, object]     = {}  # file_path → DocumentIndex (RAG)
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="VaultMind", version="0.7.0")
@@ -145,7 +166,41 @@ async def check_deps():
         results["python-docx"] = "✅ installed"
     except ImportError:
         results["python-docx"] = "❌ missing — run: pip install python-docx"
+    try:
+        import pytesseract
+        results["pytesseract"] = "✅ installed"
+    except ImportError:
+        results["pytesseract"] = "❌ missing — run: pip install pytesseract"
+    try:
+        import pdf2image
+        results["pdf2image"] = "✅ installed"
+    except ImportError:
+        results["pdf2image"] = "❌ missing — run: pip install pdf2image"
+    try:
+        import sentence_transformers
+        results["sentence-transformers"] = "✅ installed"
+    except ImportError:
+        results["sentence-transformers"] = "❌ missing — run: pip install sentence-transformers"
     return JSONResponse(results)
+
+
+@app.get("/ocr-status")
+async def ocr_status_route():
+    """Return OCR availability status."""
+    return JSONResponse(ocr_status())
+
+
+@app.get("/rag-status")
+async def rag_status_route():
+    """Return RAG engine status."""
+    semantic = is_semantic_available()
+    indexed  = {k: rag_get_stats(v) for k, v in _rag_index.items()}
+    return JSONResponse({
+        "semantic_available": semantic,
+        "mode": "semantic" if semantic else "keyword",
+        "indexed_documents":  len(indexed),
+        "indexes": indexed,
+    })
 
 
 @app.post("/upload")
@@ -158,25 +213,46 @@ async def upload_file(file: UploadFile = File(...), action: str = Form("summariz
         with open(save_path, "wb") as f:
             shutil.copyfileobj(file.file, f)
 
-        # Read and cache full document text
+        # Read and cache full document text + build RAG index
         key       = str(save_path)
-        full_text = read_full_text(str(save_path))
+        full_text, pages_count, is_ocr = read_full_text_with_meta(str(save_path))
         doc_meta  = read_document(str(save_path))
 
         _doc_cache[key]    = full_text
         _chat_history[key] = []  # reset conversation
+
+        # Build RAG index in background thread (non-blocking)
+        import threading
+        def _build_index():
+            try:
+                idx = index_document(
+                    full_text,
+                    file_name=safe_name,
+                    total_pages=pages_count,
+                    is_ocr=is_ocr,
+                )
+                _rag_index[key] = idx
+                stats = rag_get_stats(idx)
+                print(f"[RAG] Indexed {safe_name}: {stats['chunks']} chunks, "
+                      f"mode={stats['rag_mode']}, ocr={is_ocr}")
+            except Exception as e:
+                print(f"[RAG] Indexing failed for {safe_name}: {e}")
+        threading.Thread(target=_build_index, daemon=True).start()
+
         _doc_meta[key] = {
             "name":       safe_name,
-            "pages":      doc_meta.pages,
+            "pages":      pages_count,
             "words":      len(full_text.split()),
             "chars":      len(full_text),
             "size_kb":    round(save_path.stat().st_size / 1024, 1),
             "extension":  save_path.suffix.lower(),
+            "is_ocr":     is_ocr,
         }
 
         meta = _doc_meta[key]
         print(f"📄 Loaded {safe_name}: {meta['words']:,} words, "
-              f"{meta['pages']} pages, {meta['chars']:,} chars")
+              f"{meta['pages']} pages, {meta['chars']:,} chars"
+              f"{' [OCR]' if is_ocr else ''}")
 
         return JSONResponse({
             "file_path":   str(save_path),
@@ -190,6 +266,7 @@ async def upload_file(file: UploadFile = File(...), action: str = Form("summariz
                 "supported": save_path.suffix.lower() in SUPPORTED_EXTENSIONS,
                 "pages":     meta["pages"],
                 "words":     meta["words"],
+                "is_ocr":    is_ocr,
             },
         })
 
@@ -217,10 +294,12 @@ async def chat_stream(file_path: str = Form(...), question: str = Form(...)):
     key         = str(full_path)
     doc_text    = _get_doc_text(str(full_path))
     history     = _chat_history.get(key, [])
+    doc_index   = _rag_index.get(key)  # None if not yet indexed (falls back gracefully)
 
     def generate():
         answer_tokens = []
-        for token in stream_chat_with_history(doc_text, history, question):
+        for token in stream_chat_with_history(doc_text, history, question,
+                                              doc_index=doc_index):
             safe = token.replace("\n", "\\n")
             yield f"data: {safe}\n\n"
             answer_tokens.append(token)
@@ -253,17 +332,20 @@ async def summarize_stream(file_path: str = Form(...)):
 
     def generate():
         try:
-            doc_text = _get_doc_text(str(full_path))
-            meta     = _doc_meta.get(str(full_path), {})
+            doc_text  = _get_doc_text(str(full_path))
+            meta      = _doc_meta.get(str(full_path), {})
+            doc_index = _rag_index.get(str(full_path))
 
             header = (
                 f"Document: {meta.get('name', full_path.name)}\\n"
                 f"Pages: {meta.get('pages', '?')} · "
-                f"Words: {meta.get('words', 0):,}\\n\\n"
+                f"Words: {meta.get('words', 0):,}"
+                + (f" · OCR: Yes" if meta.get('is_ocr') else "")
+                + "\\n\\n"
             )
             yield f"data: {header}\n\n"
 
-            for token in stream_summary(doc_text):
+            for token in stream_summary(doc_text, doc_index=doc_index):
                 safe = token.replace("\n", "\\n")
                 yield f"data: {safe}\n\n"
 
@@ -632,101 +714,7 @@ async def multi_clear():
 
 
 
-SESSION_ID = "default"
-
-
-@app.get("/draft/templates")
-async def draft_templates():
-    return JSONResponse({"templates": get_template_list()})
-
-
-@app.get("/draft/fields/{template_id}")
-async def draft_fields(template_id: str):
-    try:
-        return JSONResponse(get_template_fields(template_id))
-    except ValueError as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
-
-
-@app.post("/draft/generate")
-async def draft_generate(request: Request):
-    try:
-        body        = await request.json()
-        template_id = body.get("template_id", "nda")
-        fields      = body.get("fields", {})
-        fmt         = body.get("format", "docx")
-        content_txt = draft_document(template_id, fields)
-        if fmt == "docx":
-            out_path = save_draft_docx(content_txt, template_id)
-        else:
-            out_path = save_draft(content_txt, template_id)
-        filename = Path(out_path).name
-        _log_audit("draft_generate", template_id, True)
-        return JSONResponse({"success": True, "content": content_txt,
-                             "output": out_path, "filename": filename})
-    except Exception as e:
-        return JSONResponse({"success": False, "error": str(e)})
-
-
-@app.post("/multi/add")
-async def multi_add(file: UploadFile = File(...)):
-    try:
-        safe_name = Path(file.filename).name
-        save_path = INPUT_DIR / safe_name
-        with open(save_path, "wb") as f:
-            shutil.copyfileobj(file.file, f)
-        full_text = read_full_text(str(save_path))
-        _doc_cache[str(save_path)] = full_text
-        if SESSION_ID not in _multi_collections:
-            _multi_collections[SESSION_ID] = DocCollection()
-        add_document(_multi_collections[SESSION_ID], safe_name, full_text)
-        summary = get_collection_summary(_multi_collections[SESSION_ID])
-        return JSONResponse({"success": True, "file_name": safe_name, "collection": summary})
-    except Exception as e:
-        return JSONResponse({"success": False, "error": str(e)})
-
-
-@app.get("/multi/status")
-async def multi_status():
-    if SESSION_ID not in _multi_collections:
-        return JSONResponse({"count": 0, "names": [], "total_words": 0})
-    return JSONResponse(get_collection_summary(_multi_collections[SESSION_ID]))
-
-
-@app.post("/multi/chat-stream")
-async def multi_chat_stream(question: str = Form(...)):
-    if not is_ollama_running():
-        async def err():
-            yield "data: Ollama is not running.\n\n"
-        return StreamingResponse(err(), media_type="text/event-stream")
-    collection = _multi_collections.get(SESSION_ID)
-    if not collection or not collection.docs:
-        async def err():
-            yield "data: No documents loaded. Add documents first.\n\n"
-        return StreamingResponse(err(), media_type="text/event-stream")
-    context  = get_multi_context(collection, question)
-    history  = _chat_history.get(f"multi_{SESSION_ID}", [])
-    def generate():
-        answer_tokens = []
-        for token in stream_chat_with_history(context, history, question):
-            safe = token.replace("\n", "\\n")
-            yield f"data: {safe}\n\n"
-            answer_tokens.append(token)
-        yield "data: [DONE]\n\n"
-        full_answer = "".join(answer_tokens).strip()
-        if full_answer:
-            history.append({"role": "user",      "content": question})
-            history.append({"role": "assistant", "content": full_answer[:600]})
-            _chat_history[f"multi_{SESSION_ID}"] = history[-20:]
-    return StreamingResponse(generate(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
-
-
-@app.post("/multi/clear")
-async def multi_clear():
-    _multi_collections.pop(SESSION_ID, None)
-    _chat_history.pop(f"multi_{SESSION_ID}", None)
-    return JSONResponse({"success": True})
+SESSION_ID = "default"  # Single-user app — one session
 
 
 @app.post("/chat-reset")
@@ -782,3 +770,308 @@ async def debug_chat(file_path: str = ""):
         "doc_chars":        len(_doc_cache.get(key, "")),
         "files_in_input":   input_files,
     })
+
+
+# ══════════════════════════════════════════════════════════════
+# v1.0 NEW FEATURES
+# ══════════════════════════════════════════════════════════════
+
+@app.post("/detect-ambiguity")
+async def detect_ambiguity_route(file_path: str = Form(...)):
+    """Scan document for ambiguous legal language — instant, no AI."""
+    try:
+        full_path = _resolve_path(file_path)
+        if not full_path.exists():
+            return JSONResponse({"success": False, "error": "File not found."})
+        text   = _get_doc_text(str(full_path))
+        result = detect_ambiguity(text, file_name=full_path.name)
+        report = format_ambiguity(result)
+        out_path = OUTPUT_DIR / f"{full_path.stem}_ambiguity.txt"
+        out_path.write_text(report, encoding="utf-8")
+        _log_audit("detect_ambiguity", str(full_path), True)
+        return JSONResponse({
+            "success":  True,
+            "result":   result,
+            "report":   report,
+            "filename": out_path.name,
+        })
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/extract-timeline")
+async def extract_timeline_route(file_path: str = Form(...)):
+    """Extract a chronological timeline of events from a contract."""
+    try:
+        full_path = _resolve_path(file_path)
+        if not full_path.exists():
+            return JSONResponse({"success": False, "error": "File not found."})
+        text   = _get_doc_text(str(full_path))
+        result = extract_timeline(text, file_name=full_path.name)
+        report = format_timeline(result)
+        out_path = OUTPUT_DIR / f"{full_path.stem}_timeline.txt"
+        out_path.write_text(report, encoding="utf-8")
+        _log_audit("extract_timeline", str(full_path), True)
+        return JSONResponse({
+            "success":  True,
+            "result":   result,
+            "report":   report,
+            "filename": out_path.name,
+        })
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.get("/clause-library")
+async def clause_library_get(category: str = "all", query: str = ""):
+    """Get all saved clauses, with optional category filter or search."""
+    try:
+        if query:
+            clauses = search_clauses(query)
+        else:
+            clauses = get_all_clauses(category=None if category == "all" else category)
+        return JSONResponse({
+            "success": True,
+            "clauses": clauses,
+            "count":   len(clauses),
+        })
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/clause-library/save")
+async def clause_library_save(request: Request):
+    """Save a clause to the local library."""
+    try:
+        body        = await request.json()
+        text        = body.get("text", "").strip()
+        category    = body.get("category", "general")
+        title       = body.get("title", "")
+        source_file = body.get("source_file", "")
+        tags        = body.get("tags", [])
+        if not text:
+            return JSONResponse({"success": False, "error": "Clause text required."})
+        clause = save_clause(text=text, category=category,
+                             title=title, source_file=source_file, tags=tags)
+        _log_audit("save_clause", source_file or "manual", True)
+        return JSONResponse({"success": True, "clause": clause})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.get("/clause-library/{clause_id}")
+async def clause_library_get_one(clause_id: str):
+    """Get a single clause by ID."""
+    try:
+        from clause_library import increment_usage
+        clause = get_clause_by_id(clause_id)
+        if not clause:
+            return JSONResponse({"success": False, "error": "Clause not found."})
+        increment_usage(clause_id)
+        return JSONResponse({"success": True, "clause": clause,
+                             "formatted": format_clause_detail(clause)})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.delete("/clause-library/{clause_id}")
+async def clause_library_delete(clause_id: str):
+    """Delete a clause from the library."""
+    try:
+        deleted = delete_clause(clause_id)
+        if not deleted:
+            return JSONResponse({"success": False, "error": "Clause not found."})
+        return JSONResponse({"success": True, "message": f"Clause {clause_id} deleted."})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.get("/clause-library-stats")
+async def clause_library_stats_route():
+    """Return clause library statistics."""
+    try:
+        return JSONResponse({"success": True, "stats": library_stats()})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.get("/clause-categories")
+async def clause_categories_route():
+    """Return valid clause categories."""
+    return JSONResponse({"success": True, "categories": CLAUSE_CATEGORIES})
+
+
+# ══════════════════════════════════════════════════════════════
+# v1.1 ZERO-AI DOCUMENT ANALYSIS — 12 NEW FEATURES
+# All routes follow the same pattern:
+#   POST with file_path form field → JSON response with result + report + filename
+# ══════════════════════════════════════════════════════════════
+
+def _analysis_route(file_path_str: str, analyzer_fn, formatter_fn,
+                    log_name: str, out_suffix: str):
+    """Shared helper for all doc_analyzer routes."""
+    full_path = _resolve_path(file_path_str)
+    if not full_path.exists():
+        return {"success": False, "error": "File not found."}
+    text   = _get_doc_text(str(full_path))
+    result = analyzer_fn(text, file_name=full_path.name)
+    report = formatter_fn(result)
+    out_path = OUTPUT_DIR / f"{full_path.stem}_{out_suffix}.txt"
+    out_path.write_text(report, encoding="utf-8")
+    _log_audit(log_name, str(full_path), True)
+    return {"success": True, "result": result, "report": report, "filename": out_path.name}
+
+
+@app.post("/analyze/defined-terms")
+async def analyze_defined_terms(file_path: str = Form(...)):
+    try:
+        return JSONResponse(_analysis_route(
+            file_path, defined_terms_map, format_defined_terms,
+            "defined_terms", "defined_terms"))
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/analyze/monetary")
+async def analyze_monetary(file_path: str = Form(...)):
+    try:
+        return JSONResponse(_analysis_route(
+            file_path, monetary_scanner, format_monetary,
+            "monetary_scan", "monetary"))
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/analyze/cross-references")
+async def analyze_cross_references(file_path: str = Form(...)):
+    try:
+        return JSONResponse(_analysis_route(
+            file_path, cross_reference_checker, format_cross_references,
+            "cross_refs", "cross_refs"))
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/analyze/term-usage")
+async def analyze_term_usage(file_path: str = Form(...)):
+    try:
+        return JSONResponse(_analysis_route(
+            file_path, defined_term_usage_checker, format_term_usage,
+            "term_usage", "term_usage"))
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/analyze/statistics")
+async def analyze_statistics(file_path: str = Form(...)):
+    try:
+        return JSONResponse(_analysis_route(
+            file_path, document_statistics, format_statistics,
+            "doc_stats", "statistics"))
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/analyze/signatures")
+async def analyze_signatures(file_path: str = Form(...)):
+    try:
+        return JSONResponse(_analysis_route(
+            file_path, signature_block_extractor, format_signature_blocks,
+            "signatures", "signatures"))
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/analyze/notices")
+async def analyze_notices(file_path: str = Form(...)):
+    try:
+        return JSONResponse(_analysis_route(
+            file_path, notice_requirements, format_notice_requirements,
+            "notices", "notices"))
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/analyze/termination")
+async def analyze_termination(file_path: str = Form(...)):
+    try:
+        return JSONResponse(_analysis_route(
+            file_path, termination_trigger_map, format_termination_triggers,
+            "termination", "termination"))
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/analyze/liability")
+async def analyze_liability(file_path: str = Form(...)):
+    try:
+        return JSONResponse(_analysis_route(
+            file_path, liability_cap_finder, format_liability_caps,
+            "liability", "liability"))
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/analyze/boilerplate")
+async def analyze_boilerplate(file_path: str = Form(...)):
+    try:
+        return JSONResponse(_analysis_route(
+            file_path, boilerplate_detector, format_boilerplate,
+            "boilerplate", "boilerplate"))
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/analyze/obligations")
+async def analyze_obligations(file_path: str = Form(...)):
+    try:
+        return JSONResponse(_analysis_route(
+            file_path, party_obligation_matrix, format_obligation_matrix,
+            "obligations", "obligations"))
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/analyze/redline")
+async def analyze_redline(
+    file_path_a: str = Form(...),
+    file_path_b: str = Form(...),
+):
+    """Word-level diff between two document versions."""
+    try:
+        path_a = _resolve_path(file_path_a)
+        path_b = _resolve_path(file_path_b)
+        if not path_a.exists():
+            return JSONResponse({"success": False, "error": f"File A not found."})
+        if not path_b.exists():
+            return JSONResponse({"success": False, "error": f"File B not found."})
+        text_a = _get_doc_text(str(path_a))
+        text_b = _get_doc_text(str(path_b))
+        result = redline_diff(text_a, text_b, path_a.name, path_b.name)
+        report = format_redline_summary(result)
+        out_path = OUTPUT_DIR / f"redline_{path_a.stem}_vs_{path_b.stem}.txt"
+        out_path.write_text(report, encoding="utf-8")
+        _log_audit("redline", f"{path_a.name} vs {path_b.name}", True)
+        return JSONResponse({
+            "success":  True,
+            "result":   {k: v for k, v in result.items() if k != "segments"},
+            "report":   report,
+            "filename": out_path.name,
+        })
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@app.post("/analyze/full")
+async def analyze_full(file_path: str = Form(...)):
+    """Run all 11 single-doc analyses at once and return combined JSON."""
+    try:
+        full_path = _resolve_path(file_path)
+        if not full_path.exists():
+            return JSONResponse({"success": False, "error": "File not found."})
+        text    = _get_doc_text(str(full_path))
+        results = run_full_analysis(text, file_name=full_path.name)
+        _log_audit("full_analysis", str(full_path), True)
+        return JSONResponse({"success": True, "results": results})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})

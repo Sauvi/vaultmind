@@ -107,19 +107,17 @@
     .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Log / Memory pages */
-    .log-table { width: 100%; border-collapse: collapse; }
-    .log-table th { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted); text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); font-weight: 500; }
-    .log-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text-muted); }
-    .log-table tr:hover td { background: var(--surface2); }
-    .status-ok { color: var(--green); } .status-fail { color: var(--red); }
-    .memory-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-    .memory-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
-    .memory-type { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--accent); margin-bottom: 8px; }
-    .memory-action-row { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
-    .memory-action { font-size: 12px; color: var(--text-muted); }
-    .memory-count { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text); }
     .empty-state { text-align: center; padding: 40px; color: var(--text-dim); font-size: 13px; }
+
+    /* Analyze cards */
+    .analyze-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; cursor: pointer; transition: all 0.15s; }
+    .analyze-card:hover { border-color: var(--accent); background: var(--accent-dim); }
+    .analyze-card.loading { border-color: var(--accent); background: var(--accent-dim); opacity: 0.7; pointer-events: none; }
+    .analyze-card.done { border-color: var(--green); }
+    .analyze-card-redline { border-style: dashed; }
+    .analyze-card-icon { font-size: 20px; margin-bottom: 6px; }
+    .analyze-card-title { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+    .analyze-card-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -143,25 +141,25 @@
         </svg>
         Workspace
       </button>
-      <button class="nav-item" onclick="showPage('log', this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" stroke-linecap="round">
-          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-        </svg>
-        Audit log
-      </button>
-      <button class="nav-item" onclick="showPage('memory', this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" stroke-linecap="round">
-          <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-        </svg>
-        Memory
-      </button>
       <button class="nav-item" onclick="showPage('draft', this)">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" stroke-linecap="round">
           <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
         </svg>
         Draft doc
       </button>
-
+      <button class="nav-item" onclick="showPage('library', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" stroke-linecap="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+        Clause Library
+      </button>
+      <button class="nav-item" onclick="showPage('analyze', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" stroke-linecap="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+        </svg>
+        Deep Analyze
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -235,6 +233,14 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
             Compare
           </button>
+          <button class="action-chip" id="chip-ambiguity" onclick="runAction('ambiguity')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Ambiguity Check
+          </button>
+          <button class="action-chip" id="chip-timeline" onclick="runAction('timeline')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Timeline
+          </button>
           <label class="action-chip" id="chip-multi" title="Add more documents for multi-doc mode" style="cursor:pointer;position:relative">
             <input type="file" accept=".txt,.pdf,.docx,.md" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;" onchange="addMoreFiles(this)"/>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
@@ -282,25 +288,6 @@
       </div>
     </div>
 
-    <!-- Audit log page -->
-    <div id="page-log" class="page" style="display:none">
-      <div class="page-header">
-        <div class="page-title">Audit log</div>
-        <div class="page-sub">Every action recorded locally.</div>
-      </div>
-      <div id="log-content"><div class="empty-state">Loading...</div></div>
-    </div>
-
-    <!-- Memory page -->
-    <div id="page-memory" class="page" style="display:none">
-      <div class="page-header">
-        <div class="page-title">Memory</div>
-        <div class="page-sub">How VaultMind learns your habits.</div>
-      </div>
-      <div id="memory-content"><div class="empty-state">Loading...</div></div>
-    </div>
-
-
     <!-- Draft page -->
     <div id="page-draft" class="page" style="display:none">
       <div class="page-header">
@@ -320,6 +307,169 @@
       </div>
     </div>
 
+    <!-- Clause Library page -->
+    <div id="page-library" class="page" style="display:none">
+      <div class="page-header">
+        <div class="page-title">Clause Library</div>
+        <div class="page-sub">Save, search, and reuse clauses across all contracts. Stored locally — never leaves your machine.</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+        <input type="text" id="clause-search" placeholder="Search clauses…" oninput="debounceSearchClauses(this.value)"
+          style="flex:1;min-width:180px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none"/>
+        <select id="clause-cat-filter" onchange="loadClauseLibrary()"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none">
+          <option value="all">All categories</option>
+          <option value="payment">Payment</option><option value="termination">Termination</option>
+          <option value="confidentiality">Confidentiality</option><option value="liability">Liability</option>
+          <option value="ip">IP</option><option value="dispute">Dispute</option>
+          <option value="warranty">Warranty</option><option value="force_majeure">Force Majeure</option>
+          <option value="assignment">Assignment</option><option value="non_compete">Non-Compete</option>
+          <option value="indemnity">Indemnity</option><option value="governing_law">Governing Law</option>
+          <option value="general">General</option>
+        </select>
+        <button onclick="loadClauseLibrary()" style="padding:8px 14px;background:var(--accent-dim);border:1px solid rgba(124,106,247,0.3);border-radius:8px;color:var(--accent);font-size:12px;cursor:pointer">🔄 Refresh</button>
+      </div>
+      <details style="margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px">
+        <summary style="cursor:pointer;font-size:13px;font-weight:500;color:var(--text)">＋ Add clause manually</summary>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+          <input type="text" id="new-clause-title" placeholder="Clause title (optional)"
+            style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none"/>
+          <select id="new-clause-cat"
+            style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none">
+            <option value="general">General</option><option value="payment">Payment</option>
+            <option value="termination">Termination</option><option value="confidentiality">Confidentiality</option>
+            <option value="liability">Liability</option><option value="ip">IP</option>
+            <option value="dispute">Dispute</option><option value="warranty">Warranty</option>
+            <option value="force_majeure">Force Majeure</option><option value="assignment">Assignment</option>
+            <option value="non_compete">Non-Compete</option><option value="indemnity">Indemnity</option>
+            <option value="governing_law">Governing Law</option>
+          </select>
+          <textarea id="new-clause-text" rows="4" placeholder="Paste or type the clause text here…"
+            style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;resize:vertical;font-family:'DM Sans',sans-serif"></textarea>
+          <input type="text" id="new-clause-tags" placeholder="Tags, comma-separated (optional)"
+            style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none"/>
+          <button onclick="saveNewClause()" style="align-self:flex-start;padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer">💾 Save Clause</button>
+        </div>
+      </details>
+      <div id="lib-stats" style="font-size:12px;color:var(--text-muted);margin-bottom:10px"></div>
+      <div id="clause-list" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+
+    <!-- Deep Analyze page -->
+    <div id="page-analyze" class="page" style="display:none">
+      <div class="page-header">
+        <div class="page-title">Deep Analyze</div>
+        <div class="page-sub">12 zero-AI instant analyses — load a document from Workspace first, then run any tool below.</div>
+      </div>
+
+      <!-- File status bar -->
+      <div id="analyze-file-bar" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--text-muted)">
+        No file loaded — go to <strong style="color:var(--accent)">Workspace</strong> and upload a document first.
+      </div>
+
+      <!-- Redline panel (needs two files) -->
+      <div id="analyze-redline-panel" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;display:none">
+        <div style="font-size:13px;font-weight:500;margin-bottom:8px">Redline — upload Version B to compare against current file</div>
+        <div style="position:relative;border:1.5px dashed var(--border-hover);border-radius:8px;padding:10px 14px;cursor:pointer;margin-bottom:10px">
+          <input type="file" id="redline-file-b" accept=".txt,.pdf,.docx,.md" style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="handleRedlineFileB(this)"/>
+          <span id="redline-b-label" style="font-size:12px;color:var(--text-muted)">Drop Version B here or click to browse</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="runRedline()" style="padding:7px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer">Run Redline</button>
+          <button onclick="document.getElementById('analyze-redline-panel').style.display='none'" style="padding:7px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text-muted);cursor:pointer">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Tool grid -->
+      <div id="analyze-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+
+        <div class="analyze-card" onclick="runAnalysis('defined-terms')" id="card-defined-terms">
+          <div class="analyze-card-icon">📖</div>
+          <div class="analyze-card-title">Defined Terms Map</div>
+          <div class="analyze-card-desc">Extract all "X means Y" definitions. Flag terms used but never defined.</div>
+        </div>
+
+        <div class="analyze-card" onclick="runAnalysis('monetary')" id="card-monetary">
+          <div class="analyze-card-icon">💰</div>
+          <div class="analyze-card-title">Monetary Scanner</div>
+          <div class="analyze-card-desc">All currency amounts sorted by size — fees, penalties, caps, salaries.</div>
+        </div>
+
+        <div class="analyze-card" onclick="runAnalysis('cross-references')" id="card-cross-references">
+          <div class="analyze-card-icon">🔗</div>
+          <div class="analyze-card-title">Cross-Reference Checker</div>
+          <div class="analyze-card-desc">Find all "See Clause X" references. Flag broken or missing ones.</div>
+        </div>
+
+        <div class="analyze-card" onclick="runAnalysis('term-usage')" id="card-term-usage">
+          <div class="analyze-card-icon">🔤</div>
+          <div class="analyze-card-title">Term Usage Checker</div>
+          <div class="analyze-card-desc">Detect defined terms used inconsistently or defined but never used.</div>
+        </div>
+
+        <div class="analyze-card" onclick="runAnalysis('statistics')" id="card-statistics">
+          <div class="analyze-card-icon">📊</div>
+          <div class="analyze-card-title">Document Statistics</div>
+          <div class="analyze-card-desc">Reading time, complexity score, sentence length, obligation density.</div>
+        </div>
+
+        <div class="analyze-card" onclick="runAnalysis('signatures')" id="card-signatures">
+          <div class="analyze-card-icon">✍️</div>
+          <div class="analyze-card-title">Signature Blocks</div>
+          <div class="analyze-card-desc">Find all signing blocks. Flag missing name, title, or date fields.</div>
+        </div>
+
+        <div class="analyze-card" onclick="runAnalysis('notices')" id="card-notices">
+          <div class="analyze-card-icon">📬</div>
+          <div class="analyze-card-title">Notice Requirements</div>
+          <div class="analyze-card-desc">All notice periods, delivery methods, and notice addresses.</div>
+        </div>
+
+        <div class="analyze-card" onclick="runAnalysis('termination')" id="card-termination">
+          <div class="analyze-card-icon">🔚</div>
+          <div class="analyze-card-title">Termination Triggers</div>
+          <div class="analyze-card-desc">Every condition that can trigger termination — grouped by type.</div>
+        </div>
+
+        <div class="analyze-card" onclick="runAnalysis('liability')" id="card-liability">
+          <div class="analyze-card-icon">🛡️</div>
+          <div class="analyze-card-title">Liability Cap Finder</div>
+          <div class="analyze-card-desc">All caps, exclusions, and indemnity limits. Flags missing caps.</div>
+        </div>
+
+        <div class="analyze-card" onclick="runAnalysis('boilerplate')" id="card-boilerplate">
+          <div class="analyze-card-icon">📋</div>
+          <div class="analyze-card-title">Boilerplate Detector</div>
+          <div class="analyze-card-desc">Standard vs non-standard clauses. Flags missing boilerplate.</div>
+        </div>
+
+        <div class="analyze-card" onclick="runAnalysis('obligations')" id="card-obligations">
+          <div class="analyze-card-icon">⚖️</div>
+          <div class="analyze-card-title">Obligation Matrix</div>
+          <div class="analyze-card-desc">Who must do what — obligations mapped to each party.</div>
+        </div>
+
+        <div class="analyze-card analyze-card-redline" onclick="showRedlinePanel()" id="card-redline">
+          <div class="analyze-card-icon">🔴</div>
+          <div class="analyze-card-title">Redline / Track Changes</div>
+          <div class="analyze-card-desc">Word-level diff between two document versions with colour markup.</div>
+        </div>
+
+      </div>
+
+      <!-- Results area -->
+      <div id="analyze-result" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div id="analyze-result-title" style="font-size:14px;font-weight:500;color:var(--text)"></div>
+          <button onclick="document.getElementById('analyze-result').style.display='none'"
+            style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;line-height:1">×</button>
+        </div>
+        <div id="analyze-result-body" style="font-family:'DM Mono',monospace;font-size:12px;white-space:pre-wrap;line-height:1.7;color:var(--text);max-height:500px;overflow-y:auto"></div>
+        <div id="analyze-result-download" style="margin-top:12px"></div>
+      </div>
+
+    </div>
+
   </main>
 </div>
 
@@ -328,6 +478,8 @@
   let currentFilePath = null;
   let turnCount       = 0;
   let isStreaming     = false;
+  let loadedFiles     = [];
+  let multiMode       = false;
 
   // ── Ollama status ──────────────────────────────────────────────────────────
   async function checkOllamaStatus() {
@@ -341,7 +493,10 @@
       } else {
         el.innerHTML = '<span style="color:var(--amber)">&#9679; Ollama offline</span>';
       }
-    } catch {}
+    } catch {
+      document.getElementById('ollama-status').innerHTML =
+        '<span style="color:var(--red)">&#9679; Cannot reach server</span>';
+    }
   }
   checkOllamaStatus();
   setInterval(checkOllamaStatus, 10000);
@@ -354,14 +509,12 @@
     page.style.display = 'flex';
     page.classList.add('active');
     if (btn) btn.classList.add('active');
-    if (name === 'log')    loadLog();
-    if (name === 'memory') loadMemory();
-    if (name === 'draft')  loadDraftTemplates();
+    if (name === 'draft')   loadDraftTemplates();
+    if (name === 'library') loadClauseLibrary();
+    if (name === 'analyze') refreshAnalyzeBar();
   }
 
   // ── File handling ──────────────────────────────────────────────────────────
-  let loadedFiles = [];
-
   const dz = document.getElementById('dropzone');
   dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
   dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
@@ -396,7 +549,6 @@
         const info = plan.file_info || {};
         loadedFiles.push({ name: file.name, path: plan.file_path,
           words: info.words || 0, pages: info.pages || 1, size_kb: info.size_kb || 0 });
-        // Add each file to multi collection
         const mf = new FormData(); mf.append('file', file);
         await fetch('/multi/add', { method: 'POST', body: mf });
       } catch(err) { addMessage('system', 'Upload failed: ' + err.message); }
@@ -476,29 +628,37 @@
     fetch('/multi/clear', { method: 'POST' });
   }
 
-  // ── Quick actions (summarize / legal review) ───────────────────────────────
+  // ── Quick actions ──────────────────────────────────────────────────────────
   async function runAction(action) {
     if (!currentFilePath || isStreaming) return;
     const chipIdMap = {
       summarize: 'chip-summarize', legal_review: 'chip-legal',
-      clauses: 'chip-clauses', deadlines: 'chip-deadlines', report: 'chip-report'
+      clauses: 'chip-clauses', deadlines: 'chip-deadlines',
+      report: 'chip-report', ambiguity: 'chip-ambiguity',
+      timeline: 'chip-timeline'
     };
     const chip = document.getElementById(chipIdMap[action] || 'chip-' + action);
-    const labels = { summarize: 'Summarize', legal_review: 'Legal Review' };
+    const labels = {
+      summarize: 'Summarize', legal_review: 'Legal Review',
+      clauses: 'Extract Clauses', deadlines: 'Track Deadlines',
+      report: 'Export Report', ambiguity: 'Ambiguity Check',
+      timeline: 'Extract Timeline'
+    };
 
     isStreaming = true;
     if (chip) chip.classList.add('running');
-
     addMessage('user', labels[action] || action);
     const bubble = addMessage('ai', '<span class="spinner"></span>');
 
     try {
-      // Handle non-streaming actions
-      if (action === 'clauses' || action === 'deadlines' || action === 'report') {
+      // Non-streaming actions
+      if (['clauses','deadlines','report','ambiguity','timeline'].includes(action)) {
         const endpointMap = {
           clauses:   '/extract-clauses',
           deadlines: '/track-deadlines',
           report:    '/generate-report',
+          ambiguity: '/detect-ambiguity',
+          timeline:  '/extract-timeline',
         };
         const form = new FormData();
         form.append('file_path', currentFilePath);
@@ -508,9 +668,44 @@
         const result = await res.json();
 
         if (result.success) {
-          let html = result.report
-            ? result.report.replace(/\n/g, '<br>')
-            : result.message || 'Done.';
+          let html = '';
+
+          if (action === 'ambiguity' && result.result) {
+            const r = result.result;
+            const riskColor = r.overall_risk === 'HIGH' ? 'var(--red)' : r.overall_risk === 'MEDIUM' ? 'var(--amber)' : 'var(--green)';
+            html += `<strong>Ambiguity Check</strong> — Overall Risk: <strong style="color:${riskColor}">${r.overall_risk}</strong><br>`;
+            html += `<span style="font-size:12px;color:var(--text-muted)">${r.total_findings} issues · ${r.high_count} HIGH · ${r.medium_count} MEDIUM</span><br><br>`;
+            if (r.findings && r.findings.length) {
+              r.findings.slice(0, 8).forEach(f => {
+                const fc = f.severity === 'HIGH' ? 'var(--red)' : 'var(--amber)';
+                html += `<div style="margin:5px 0;padding:8px 10px;border-left:3px solid ${fc};background:var(--surface2);border-radius:0 6px 6px 0;font-size:12px">`;
+                html += `<span style="color:${fc};font-weight:500">[${f.severity}] &ldquo;${f.term}&rdquo;</span><br>`;
+                html += `<span style="color:var(--text-muted)">${f.sentence.substring(0,140)}…</span><br>`;
+                html += `<span style="color:var(--accent);font-size:11px">💡 ${f.suggestion}</span>`;
+                html += `</div>`;
+              });
+              if (r.findings.length > 8) html += `<div style="font-size:12px;color:var(--text-muted);margin-top:6px">…and ${r.findings.length - 8} more in the downloaded report.</div>`;
+            }
+          } else if (action === 'timeline' && result.result) {
+            const r = result.result;
+            html += `<strong>Contract Timeline</strong> — ${r.total_entries} events found<br><br>`;
+            if (r.entries && r.entries.length) {
+              let lastType = null;
+              r.entries.forEach(e => {
+                if (e.event_type !== lastType) {
+                  lastType = e.event_type;
+                  html += `<div style="font-size:11px;font-weight:600;color:var(--accent);margin-top:8px;margin-bottom:3px">${e.event_type.toUpperCase()}</div>`;
+                }
+                const dateStr = e.dates.length ? e.dates.join(', ') : '<em style="color:var(--text-muted)">No specific date</em>';
+                html += `<div style="padding:6px 10px;margin:3px 0;border-left:2px solid ${e.has_specific_date ? 'var(--accent)' : 'var(--border)'};background:var(--surface2);border-radius:0 6px 6px 0;font-size:12px">`;
+                html += `<span style="color:var(--green);font-size:11px">📅 ${dateStr}</span><br>${e.description.substring(0,160)}`;
+                html += `</div>`;
+              });
+            }
+          } else {
+            html = result.report ? result.report.replace(/\n/g, '<br>') : result.message || 'Done.';
+          }
+
           if (result.filename) {
             html += `<br><br><a class="download-link" href="/download/${result.filename}">↓ Download ${result.filename}</a>`;
           }
@@ -532,9 +727,6 @@
 
       const form = new FormData();
       form.append('file_path', currentFilePath);
-      if (action === 'chat') {
-        form.append('question', 'Please provide a detailed summary of this document in 5 bullet points.');
-      }
 
       const res = await fetch(endpoint, { method: 'POST', body: form });
       const reader = res.body.getReader();
@@ -558,7 +750,6 @@
         }
       }
 
-      // After legal review, also save to file
       if (action === 'legal_review' || action === 'summarize') {
         const saveForm = new FormData();
         saveForm.append('file_path', currentFilePath);
@@ -598,7 +789,6 @@
     addMessage('user', q);
     const bubble = addMessage('ai', '<span class="spinner"></span>');
 
-    // Elapsed timer
     let elapsed = 0;
     const timer = setInterval(() => {
       elapsed++;
@@ -606,7 +796,6 @@
         bubble.innerHTML = '<span class="spinner"></span> <span style="font-size:11px;color:var(--text-muted)">' + elapsed + 's</span>';
     }, 1000);
 
-    // In multi-doc mode, use multi endpoint; otherwise single doc
     const endpoint = multiMode ? '/multi/chat-stream' : '/chat-stream';
     const form = new FormData();
     if (!multiMode) form.append('file_path', currentFilePath);
@@ -677,11 +866,9 @@
     }
     document.getElementById('compare-panel').style.display = 'none';
     const bubble = addMessage('ai', '<span class="spinner"></span> Comparing contracts...');
-
     const form = new FormData();
     form.append('file_path_a', currentFilePath);
     form.append('file_path_b', compareFilePath);
-
     try {
       const res    = await fetch('/compare', { method: 'POST', body: form });
       const result = await res.json();
@@ -717,17 +904,12 @@
     const box = document.getElementById('chat-messages');
     const wrap = document.createElement('div');
     wrap.className = 'msg ' + role;
-
     if (role === 'system' || role === 'action-result') {
       wrap.innerHTML = '<div class="msg-bubble">' + html + '</div>';
     } else if (role === 'user') {
-      wrap.innerHTML =
-        '<div class="msg-avatar">U</div>' +
-        '<div class="msg-bubble">' + html + '</div>';
+      wrap.innerHTML = '<div class="msg-avatar">U</div><div class="msg-bubble">' + html + '</div>';
     } else {
-      wrap.innerHTML =
-        '<div class="msg-avatar">VM</div>' +
-        '<div class="msg-bubble">' + html + '</div>';
+      wrap.innerHTML = '<div class="msg-avatar">VM</div><div class="msg-bubble">' + html + '</div>';
     }
     box.appendChild(wrap);
     scrollChat();
@@ -748,7 +930,6 @@
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   }
-
 
   // ── Draft assistant ────────────────────────────────────────────────────────
   let currentTemplateId = null;
@@ -772,13 +953,11 @@
       d.style.borderColor = 'var(--border)');
     el.style.borderColor = 'var(--accent)';
     currentTemplateId = id;
-
     const res  = await fetch('/draft/fields/' + id);
     const data = await res.json();
-
     document.getElementById('draft-form-title').textContent = 'Fill in details for: ' + data.name;
-    const fieldsDiv = document.getElementById('draft-fields');
-        const isDateField = f => f.includes('date');
+    const fieldsDiv  = document.getElementById('draft-fields');
+    const isDateField = f => f.includes('date');
     fieldsDiv.innerHTML = data.fields.map(f => `
       <div>
         <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">
@@ -789,7 +968,7 @@
         ${isDateField(f)
           ? `<input id="field_${f}" type="date"
                style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;cursor:pointer"
-               onchange="formatDateField(this)"/>`
+               onchange="storeDateFormatted(this)"/>`
           : `<input id="field_${f}" type="text" placeholder="${data.defaults[f] || f}"
                style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none"/>`
         }
@@ -815,11 +994,9 @@
     tdata.fields.forEach(f => {
       const el = document.getElementById('field_' + f);
       if (el && el.value) {
-        // Use formatted date string if available, otherwise raw value
         fields[f] = el.dataset.formatted || el.value;
       }
     });
-
     const res = await fetch('/draft/generate', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -838,39 +1015,137 @@
     }
   }
 
-    // ── Audit log ──────────────────────────────────────────────────────────────
-  async function loadLog() {
-    const c = document.getElementById('log-content');
+  // ── Clause Library ─────────────────────────────────────────────────────────
+  async function loadClauseLibrary() {
+    const listEl  = document.getElementById('clause-list');
+    const statsEl = document.getElementById('lib-stats');
+    if (!listEl) return;
+    listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px">Loading…</div>';
+
+    const query    = (document.getElementById('clause-search')?.value || '').trim();
+    const category = document.getElementById('clause-cat-filter')?.value || 'all';
+    const params   = new URLSearchParams({ category });
+    if (query) params.set('query', query);
+
     try {
-      const data = await (await fetch('/audit')).json();
-      if (!data.log.length) { c.innerHTML = '<div class="empty-state">No actions yet.</div>'; return; }
-      const rows = data.log.map(line => {
-        const p = line.trim().split(' | ');
-        const ts = (p[0]||'').replace('[','').replace(']','');
-        const st = (p[1]||'').trim();
-        const ac = p[2]||''; const fi = p[3]||'';
-        return '<tr><td>'+ts+'</td><td class="'+(st==='OK'?'status-ok':'status-fail')+'">'+st+'</td><td>'+ac+'</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+fi+'</td></tr>';
+      const res     = await fetch('/clause-library?' + params);
+      const data    = await res.json();
+      const clauses = data.clauses || [];
+
+      const sr = await fetch('/clause-library-stats');
+      const sd = await sr.json();
+      if (sd.success && statsEl) {
+        const s = sd.stats;
+        statsEl.textContent = s.total_clauses + ' clause' + (s.total_clauses !== 1 ? 's' : '') +
+          ' saved · ' + Object.keys(s.by_category || {}).length + ' categories';
+      }
+
+      if (!clauses.length) {
+        listEl.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">
+          <div style="font-size:28px;margin-bottom:8px">📚</div>
+          No clauses saved yet.<br>
+          <span style="font-size:12px">Use Ambiguity Check or Extract Clauses, then save clauses here.</span>
+        </div>`;
+        return;
+      }
+
+      const catColors = {
+        payment:'#4caf50',termination:'#e53935',confidentiality:'#1976d2',
+        liability:'#ff9800',ip:'#9c27b0',dispute:'#795548',warranty:'#009688',
+        force_majeure:'#607d8b',assignment:'#3f51b5',non_compete:'#f44336',
+        indemnity:'#ff5722',governing_law:'#00bcd4',general:'#9e9e9e'
+      };
+
+      listEl.innerHTML = clauses.map(c => {
+        const col  = catColors[c.category] || '#9e9e9e';
+        const tags = (c.tags||[]).map(t =>
+          `<span style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:10px;color:var(--text-muted)">${t}</span>`
+        ).join(' ');
+        return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+            <div>
+              <span style="background:${col}22;color:${col};border-radius:4px;padding:2px 7px;font-size:10px;font-weight:600;margin-right:6px">${c.category.replace('_',' ').toUpperCase()}</span>
+              <strong style="font-size:13px">${c.title}</strong>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+              <button onclick="copyClause('${c.id}')" style="padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px">📋 Copy</button>
+              <button onclick="deleteClause('${c.id}')" style="padding:3px 8px;border-radius:4px;border:1px solid var(--red);background:transparent;color:var(--red);cursor:pointer;font-size:11px">🗑</button>
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;white-space:pre-wrap;max-height:72px;overflow:hidden">
+            ${c.text.substring(0,220)}${c.text.length>220?'…':''}
+          </div>
+          ${tags ? '<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">'+tags+'</div>' : ''}
+          <div style="font-size:11px;color:var(--text-dim);margin-top:6px">
+            Saved: ${c.created_at.substring(0,10)}
+            ${c.source_file ? ' · From: '+c.source_file : ''}
+            · Used: ${c.used_count||0}×
+          </div>
+        </div>`;
       }).join('');
-      c.innerHTML = '<table class="log-table"><thead><tr><th>Time</th><th>Status</th><th>Action</th><th>File</th></tr></thead><tbody>'+rows+'</tbody></table>';
-    } catch { c.innerHTML = '<div class="empty-state">Could not load log.</div>'; }
+
+    } catch(e) {
+      listEl.innerHTML = '<div style="color:var(--red);font-size:13px;padding:12px">Failed to load library: ' + e.message + '</div>';
+    }
   }
 
-  // ── Memory ─────────────────────────────────────────────────────────────────
-  async function loadMemory() {
-    const c = document.getElementById('memory-content');
-    try {
-      const data = await (await fetch('/memory')).json();
-      const keys = Object.keys(data);
-      if (!keys.length) { c.innerHTML = '<div class="empty-state">No patterns yet.</div>'; return; }
-      const cards = keys.map(type => {
-        const rows = Object.entries(data[type]).map(([a, n]) =>
-          '<div class="memory-action-row"><span class="memory-action">'+a+'</span><span class="memory-count">'+n+'&times;</span></div>'
-        ).join('');
-        return '<div class="memory-item"><div class="memory-type">.'+type+'</div>'+rows+'</div>';
-      }).join('');
-      c.innerHTML = '<div class="memory-grid">'+cards+'</div>';
-    } catch { c.innerHTML = '<div class="empty-state">Could not load memory.</div>'; }
+  async function saveNewClause() {
+    const text     = document.getElementById('new-clause-text')?.value.trim();
+    const title    = document.getElementById('new-clause-title')?.value.trim();
+    const category = document.getElementById('new-clause-cat')?.value || 'general';
+    const tagsRaw  = document.getElementById('new-clause-tags')?.value.trim();
+    const tags     = tagsRaw ? tagsRaw.split(',').map(t=>t.trim()).filter(Boolean) : [];
+    if (!text) { alert('Clause text is required.'); return; }
+    await saveClauseToLibrary({ text, title, category, tags, source_file: 'Manual' });
+    document.getElementById('new-clause-text').value  = '';
+    document.getElementById('new-clause-title').value = '';
+    document.getElementById('new-clause-tags').value  = '';
   }
+
+  async function saveClauseToLibrary({ text, title='', category='general', source_file='', tags=[] }) {
+    try {
+      const res  = await fetch('/clause-library/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, title, category, source_file, tags }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Clause saved! ID: ' + data.clause.id);
+        loadClauseLibrary();
+      } else {
+        showToast('Error: ' + (data.error || 'Save failed'), true);
+      }
+    } catch(e) { showToast('Save failed: ' + e.message, true); }
+  }
+
+  async function copyClause(clauseId) {
+    try {
+      const res  = await fetch('/clause-library/' + clauseId);
+      const data = await res.json();
+      if (data.success) {
+        await navigator.clipboard.writeText(data.clause.text);
+        showToast('Clause copied to clipboard!');
+      }
+    } catch(e) { showToast('Copy failed', true); }
+  }
+
+  async function deleteClause(clauseId) {
+    if (!confirm('Delete this clause from the library?')) return;
+    try {
+      const res  = await fetch('/clause-library/' + clauseId, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) { showToast('Clause deleted.'); loadClauseLibrary(); }
+      else showToast('Error: ' + data.error, true);
+    } catch(e) { showToast('Delete failed', true); }
+  }
+
+  let _searchTimer = null;
+  function debounceSearchClauses() {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(() => loadClauseLibrary(), 300);
+  }
+
 </script>
 </body>
 </html>
