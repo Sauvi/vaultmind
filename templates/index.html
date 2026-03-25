@@ -160,11 +160,20 @@
         </svg>
         Deep Analyze
       </button>
+      <button class="nav-item" onclick="showPage('research', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" stroke-linecap="round">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </svg>
+        Research
+      </button>
     </nav>
 
     <div class="sidebar-footer">
       <div class="privacy-badge"><div class="dot"></div>100% local · no cloud</div>
       <div id="ollama-status">Checking AI...</div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:10px;color:var(--text-dim);line-height:1.5">
+        AI outputs may contain errors. Always verify legal analysis with a qualified lawyer before acting on it.
+      </div>
     </div>
   </aside>
 
@@ -455,6 +464,81 @@
           <div class="analyze-card-desc">Word-level diff between two document versions with colour markup.</div>
         </div>
 
+        <div class="analyze-card analyze-card-ocr" onclick="showOcrPanel()" id="card-ocr"
+          style="border-color:rgba(62,207,126,0.3);grid-column:1/-1">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="font-size:28px;flex-shrink:0">🔍</div>
+            <div>
+              <div class="analyze-card-title" style="font-size:14px">OCR Extract — Scanned PDF to Editable DOCX</div>
+              <div class="analyze-card-desc">Upload a scanned or image-based PDF. VaultMind will extract all text using OCR (Hindi + English), save it as an editable DOCX, and load it into the workspace so you can chat with it immediately.</div>
+            </div>
+            <div style="margin-left:auto;flex-shrink:0;background:var(--green-dim);border:1px solid rgba(62,207,126,0.3);border-radius:8px;padding:6px 14px;font-size:12px;color:var(--green);white-space:nowrap">
+              Upload PDF
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- OCR Panel -->
+      <div id="analyze-ocr-panel" style="display:none;background:var(--surface);border:1px solid rgba(62,207,126,0.3);border-radius:var(--radius-lg);padding:20px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div style="font-size:14px;font-weight:500;color:var(--green)">OCR Extract — Scanned PDF to Editable DOCX</div>
+          <button onclick="document.getElementById('analyze-ocr-panel').style.display='none'"
+            style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:18px">×</button>
+        </div>
+
+        <!-- Upload zone -->
+        <!-- Upload zone — explicit button for reliability on Windows -->
+        <div id="ocr-dropzone" style="border:2px dashed rgba(62,207,126,0.3);border-radius:10px;padding:28px;text-align:center;transition:border-color 0.15s"
+          ondragover="event.preventDefault();this.style.borderColor='var(--green)'"
+          ondragleave="this.style.borderColor='rgba(62,207,126,0.3)'"
+          ondrop="event.preventDefault();this.style.borderColor='rgba(62,207,126,0.3)';handleOcrDrop(event)">
+          <div style="font-size:28px;margin-bottom:8px;pointer-events:none">&#128196;</div>
+          <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:8px;pointer-events:none">Drop a scanned PDF here</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px;pointer-events:none">Supports Hindi + English &middot; Image PDFs &middot; Court documents &middot; Agreements</div>
+          <!-- Explicit visible button — most reliable on Windows Chrome -->
+          <label for="ocr-file-input" style="display:inline-block;padding:8px 20px;background:var(--green);color:#000;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer">
+            Browse &amp; Select PDF
+          </label>
+          <input type="file" id="ocr-file-input" accept=".pdf" style="display:none" onchange="handleOcrFile(this)"/>
+        </div>
+
+        <!-- Warning about time -->
+        <div style="background:rgba(240,164,74,0.08);border:1px solid rgba(240,164,74,0.2);border-radius:8px;padding:10px 14px;margin-top:12px;font-size:12px;color:var(--amber)">
+          OCR runs on your CPU — a 10-page document takes roughly 1-2 minutes. Do not close the window while processing.
+        </div>
+
+        <!-- Progress area (hidden until OCR starts) -->
+        <div id="ocr-progress" style="display:none;margin-top:14px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <div class="spinner"></div>
+            <div id="ocr-progress-text" style="font-size:13px;color:var(--text-muted)">Initialising OCR...</div>
+          </div>
+          <div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden">
+            <div id="ocr-progress-bar" style="height:4px;background:var(--green);border-radius:2px;width:0%;transition:width 0.5s"></div>
+          </div>
+        </div>
+
+        <!-- Result area (hidden until done) -->
+        <div id="ocr-result" style="display:none;margin-top:14px">
+          <div style="background:var(--green-dim);border:1px solid rgba(62,207,126,0.3);border-radius:10px;padding:14px 16px;margin-bottom:12px">
+            <div id="ocr-result-title" style="font-size:13px;font-weight:500;color:var(--green);margin-bottom:6px"></div>
+            <div id="ocr-result-stats" style="font-size:12px;color:var(--text-muted);margin-bottom:10px"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <a id="ocr-download-link" href="#" style="padding:7px 16px;background:var(--green);color:#000;border-radius:8px;font-size:12px;font-weight:500;text-decoration:none">
+                Download DOCX
+              </a>
+              <button id="ocr-chat-btn" onclick="loadOcrIntoWorkspace()"
+                style="padding:7px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer">
+                Open in Workspace to Chat
+              </button>
+            </div>
+          </div>
+          <!-- Text preview -->
+          <div style="font-size:12px;font-weight:500;color:var(--text-muted);margin-bottom:6px">Preview (first 500 chars):</div>
+          <div id="ocr-preview" style="background:var(--surface2);border-radius:8px;padding:12px;font-size:12px;font-family:'DM Mono',monospace;line-height:1.7;color:var(--text);white-space:pre-wrap;max-height:180px;overflow-y:auto"></div>
+        </div>
       </div>
 
       <!-- Results area -->
@@ -470,6 +554,53 @@
 
     </div>
 
+    <!-- ── RESEARCH PAGE (skeleton) ── -->
+    <div id="page-research" class="page" style="display:none">
+      <div class="page-header">
+        <div class="page-title">Research Library</div>
+        <div class="page-sub">Search Indian court judgments and bare acts. Save cases locally. Chat with your library using AI.</div>
+      </div>
+
+      <!-- Coming soon panels -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;opacity:0.6">
+          <div style="font-size:18px;margin-bottom:8px">🔍</div>
+          <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">Search Cases</div>
+          <div style="font-size:11px;color:var(--text-muted);line-height:1.6">Search 5.5 million Indian court judgments from Supreme Court and High Courts. Filter by court, date, and topic.</div>
+          <div style="margin-top:12px;display:inline-block;padding:4px 10px;background:rgba(240,164,74,0.1);border:1px solid rgba(240,164,74,0.3);border-radius:6px;font-size:11px;color:var(--amber)">Coming soon</div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;opacity:0.6">
+          <div style="font-size:18px;margin-bottom:8px">📜</div>
+          <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">Bare Acts Browser</div>
+          <div style="font-size:11px;color:var(--text-muted);line-height:1.6">Browse IPC, CPC, CrPC, Contract Act, Companies Act and 16 more. Search by section number or keyword.</div>
+          <div style="margin-top:12px;display:inline-block;padding:4px 10px;background:rgba(240,164,74,0.1);border:1px solid rgba(240,164,74,0.3);border-radius:6px;font-size:11px;color:var(--amber)">Coming soon</div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;opacity:0.6">
+          <div style="font-size:18px;margin-bottom:8px">📚</div>
+          <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">My Library</div>
+          <div style="font-size:11px;color:var(--text-muted);line-height:1.6">Save up to 15 cases and acts locally for free. Upgrade to Pro for unlimited saves, curated bundles, and auto-sync.</div>
+          <div style="margin-top:12px;display:inline-block;padding:4px 10px;background:rgba(240,164,74,0.1);border:1px solid rgba(240,164,74,0.3);border-radius:6px;font-size:11px;color:var(--amber)">Coming soon</div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;opacity:0.6">
+          <div style="font-size:18px;margin-bottom:8px">💬</div>
+          <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">Chat with Library</div>
+          <div style="font-size:11px;color:var(--text-muted);line-height:1.6">Ask questions across all your saved cases. "What did courts rule on force majeure in 2022?" — answered with citations.</div>
+          <div style="margin-top:12px;display:inline-block;padding:4px 10px;background:rgba(240,164,74,0.1);border:1px solid rgba(240,164,74,0.3);border-radius:6px;font-size:11px;color:var(--amber)">Coming soon</div>
+        </div>
+
+      </div>
+
+      <!-- Notify me -->
+      <div style="background:var(--accent-dim);border:1px solid rgba(124,106,247,0.2);border-radius:var(--radius-lg);padding:20px;text-align:center">
+        <div style="font-size:14px;font-weight:500;color:var(--accent);margin-bottom:6px">Research Library is under active development</div>
+        <div style="font-size:12px;color:var(--text-muted)">This feature will be available in the next update. All research stays 100% local — no cloud, no subscription required for the free tier.</div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -480,6 +611,35 @@
   let isStreaming     = false;
   let loadedFiles     = [];
   let multiMode       = false;
+
+  // ── Toast (defined first so all functions can use it) ─────────────────────
+  function showToast(msg, isError = false) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = [
+      'position:fixed;bottom:24px;right:24px;padding:10px 16px',
+      'border-radius:8px;font-size:13px;z-index:9999;max-width:320px',
+      'background:' + (isError ? 'var(--red-dim)' : 'var(--green-dim)'),
+      'color:'      + (isError ? 'var(--red)'     : 'var(--green)'),
+      'border:1px solid ' + (isError ? 'rgba(244,107,107,0.3)' : 'rgba(62,207,126,0.3)'),
+    ].join(';');
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+  }
+
+  // ── refreshAnalyzeBar (needed by showPage) ─────────────────────────────────
+  function refreshAnalyzeBar() {
+    const bar = document.getElementById('analyze-file-bar');
+    if (!bar) return;
+    if (currentFilePath && loadedFiles.length) {
+      const names = loadedFiles.map(f => f.name).join(', ');
+      bar.innerHTML = 'Loaded: <strong style="color:var(--green)">' + names + '</strong> — click any tool below to analyze';
+      bar.style.borderColor = 'var(--green)';
+    } else {
+      bar.innerHTML = 'No file loaded — go to <strong style="color:var(--accent)">Workspace</strong> and upload a document first.';
+      bar.style.borderColor = 'var(--border)';
+    }
+  }
 
   // ── Ollama status ──────────────────────────────────────────────────────────
   async function checkOllamaStatus() {
@@ -500,6 +660,7 @@
   }
   checkOllamaStatus();
   setInterval(checkOllamaStatus, 10000);
+  showDisclaimerBanner();
 
   // ── Navigation ─────────────────────────────────────────────────────────────
   function showPage(name, btn) {
@@ -511,8 +672,7 @@
     if (btn) btn.classList.add('active');
     if (name === 'draft')   loadDraftTemplates();
     if (name === 'library') loadClauseLibrary();
-    if (name === 'analyze') refreshAnalyzeBar();
-  }
+    if (name === 'analyze') refreshAnalyzeBar();  }
 
   // ── File handling ──────────────────────────────────────────────────────────
   const dz = document.getElementById('dropzone');
@@ -909,11 +1069,47 @@
     } else if (role === 'user') {
       wrap.innerHTML = '<div class="msg-avatar">U</div><div class="msg-bubble">' + html + '</div>';
     } else {
-      wrap.innerHTML = '<div class="msg-avatar">VM</div><div class="msg-bubble">' + html + '</div>';
+      // AI message — add disclaimer note below bubble
+      wrap.innerHTML =
+        '<div class="msg-avatar">VM</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div class="msg-bubble">' + html + '</div>' +
+          '<div style="font-size:10px;color:var(--text-dim);margin-top:4px;padding-left:2px">' +
+            'AI responses may contain errors. Verify with a qualified lawyer before acting.' +
+          '</div>' +
+        '</div>';
     }
     box.appendChild(wrap);
     scrollChat();
     return wrap.querySelector('.msg-bubble');
+  }
+
+  // First-load disclaimer banner
+  function showDisclaimerBanner() {
+    if (localStorage.getItem('vm_disclaimer_seen')) return;
+    const banner = document.createElement('div');
+    banner.id = 'disclaimer-banner';
+    banner.style.cssText = [
+      'position:fixed;bottom:0;left:0;right:0;z-index:999',
+      'background:var(--surface);border-top:1px solid var(--border)',
+      'padding:14px 24px;display:flex;align-items:center;gap:16px',
+      'font-size:12px;color:var(--text-muted)',
+    ].join(';');
+    banner.innerHTML =
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" style="flex-shrink:0">' +
+        '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>' +
+        '<line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' +
+      '</svg>' +
+      '<span style="flex:1">' +
+        '<strong style="color:var(--text)">VaultMind uses AI — results may not be accurate.</strong> ' +
+        'This tool is for research and drafting assistance only. Always verify AI-generated legal analysis with a qualified lawyer before making any legal decisions. ' +
+        'VaultMind is not a law firm and does not provide legal advice.' +
+      '</span>' +
+      '<button onclick="document.getElementById(\'disclaimer-banner\').remove();localStorage.setItem(\'vm_disclaimer_seen\',\'1\')" ' +
+        'style="flex-shrink:0;padding:6px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;cursor:pointer">' +
+        'I understand' +
+      '</button>';
+    document.body.appendChild(banner);
   }
 
   function scrollChat() {
@@ -1144,6 +1340,174 @@
   function debounceSearchClauses() {
     clearTimeout(_searchTimer);
     _searchTimer = setTimeout(() => loadClauseLibrary(), 300);
+  }
+
+  // ── OCR Extract ─────────────────────────────────────────────────────────────
+
+  let _ocrResult = null;
+
+  function showOcrPanel() {
+    const panel = document.getElementById('analyze-ocr-panel');
+    panel.style.display = 'block';
+    document.getElementById('ocr-progress').style.display = 'none';
+    document.getElementById('ocr-result').style.display   = 'none';
+    document.getElementById('ocr-file-input').value       = '';
+    document.getElementById('ocr-dropzone').style.borderColor = 'rgba(62,207,126,0.3)';
+    document.getElementById('ocr-dropzone').style.opacity = '1';
+    document.getElementById('ocr-dropzone').style.pointerEvents = 'auto';
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function handleOcrDrop(event) {
+    const files = event.dataTransfer.files;
+    if (!files || !files[0]) return;
+    // Create a fake input-like object
+    handleOcrFile({ files: files });
+  }
+
+  async function handleOcrFile(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      showToast('Please upload a PDF file.', true);
+      return;
+    }
+
+    document.getElementById('ocr-progress').style.display = 'block';
+    document.getElementById('ocr-result').style.display   = 'none';
+    document.getElementById('ocr-dropzone').style.opacity = '0.5';
+    document.getElementById('ocr-dropzone').style.pointerEvents = 'none';
+
+    const progressBar  = document.getElementById('ocr-progress-bar');
+    const progressText = document.getElementById('ocr-progress-text');
+    progressText.textContent = `Processing "${file.name}"...`;
+
+    let pct = 0;
+    const timer = setInterval(() => {
+      if (pct < 85) {
+        pct += (85 - pct) * 0.03;
+        if (progressBar) progressBar.style.width = Math.round(pct) + '%';
+        if (progressText) {
+          if (pct < 20)      progressText.textContent = 'Reading PDF pages...';
+          else if (pct < 45) progressText.textContent = 'Running OCR on pages...';
+          else if (pct < 70) progressText.textContent = 'Extracting text...';
+          else               progressText.textContent = 'Finalising document...';
+        }
+      }
+    }, 400);
+
+    try {
+      console.log('[OCR] Sending request...');
+      const formData = new FormData();
+      formData.append('file', file);
+      const res  = await fetch('/ocr-extract', { method: 'POST', body: formData });
+      console.log('[OCR] Response status:', res.status);
+      const data = await res.json();
+      console.log('[OCR] Response data:', data);
+
+      clearInterval(timer);
+      if (progressBar)  progressBar.style.width = '100%';
+      if (progressText) progressText.textContent = data.success ? 'Complete!' : 'Failed.';
+      await new Promise(r => setTimeout(r, 500));
+
+      const progressEl = document.getElementById('ocr-progress');
+      const dropzoneEl = document.getElementById('ocr-dropzone');
+      if (progressEl) progressEl.style.display = 'none';
+      if (dropzoneEl) { dropzoneEl.style.opacity = '1'; dropzoneEl.style.pointerEvents = 'auto'; }
+
+      if (data.success) {
+        _ocrResult = data;
+        console.log('[OCR] Success! Showing result panel...');
+
+        const titleEl    = document.getElementById('ocr-result-title');
+        const statsEl    = document.getElementById('ocr-result-stats');
+        const dlEl       = document.getElementById('ocr-download-link');
+        const previewEl  = document.getElementById('ocr-preview');
+        const resultEl   = document.getElementById('ocr-result');
+
+        if (titleEl)   titleEl.textContent   = 'Extracted: ' + data.docx_filename;
+        if (statsEl)   statsEl.textContent   = data.page_count + ' pages · ' + (data.word_count || 0).toLocaleString() + ' words' + (data.used_ocr ? ' · OCR applied' : ' · Digital text');
+        if (dlEl)      dlEl.href             = '/download/' + data.docx_filename;
+        if (previewEl) previewEl.textContent = data.preview || '';
+        if (resultEl)  { resultEl.style.display = 'block'; resultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+
+        showToast('OCR complete — ' + (data.word_count || 0).toLocaleString() + ' words extracted!');
+      } else {
+        const errMsg = data.error || 'Unknown error';
+        console.error('[OCR] Server error:', errMsg);
+        showToast('OCR failed: ' + errMsg, true);
+        if (progressText) progressText.textContent = 'Error: ' + errMsg;
+        if (progressBar)  progressBar.style.background = 'var(--red)';
+        if (progressEl)   progressEl.style.display = 'block';
+      }
+    } catch(e) {
+      clearInterval(timer);
+      console.error('OCR fetch error:', e);
+      document.getElementById('ocr-dropzone').style.opacity = '1';
+      document.getElementById('ocr-dropzone').style.pointerEvents = 'auto';
+      document.getElementById('ocr-progress').style.display = 'none';
+      showToast('OCR request failed: ' + e.message, true);
+    }
+  }
+
+  function loadOcrIntoWorkspace() {
+    if (!_ocrResult || !_ocrResult.file_path) {
+      showToast('No OCR result to load.', true);
+      return;
+    }
+
+    // Set up loadedFiles with correct shape (same as normal upload)
+    currentFilePath = _ocrResult.file_path;
+    multiMode       = false;
+    turnCount       = 0;
+    loadedFiles     = [{
+      name:    _ocrResult.txt_filename,
+      path:    _ocrResult.file_path,
+      words:   _ocrResult.word_count || 0,
+      pages:   _ocrResult.page_count || 1,
+      size_kb: 0,
+    }];
+
+    // Show file-loaded-bar (same as normal upload flow)
+    document.getElementById('dropzone').style.display        = 'none';
+    document.getElementById('file-loaded-bar').style.display = 'block';
+    document.getElementById('actions-bar').style.display     = 'flex';
+
+    // Render file tag
+    const tagsEl = document.getElementById('file-tags');
+    if (tagsEl) {
+      tagsEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--green);border-radius:5px;padding:2px 8px;font-size:11px;color:var(--green)">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16h16V8z"/></svg>
+        ${_ocrResult.txt_filename}
+      </span>`;
+    }
+
+    // Set meta line
+    document.getElementById('loaded-meta').textContent =
+      '1 file · ' + (_ocrResult.word_count || 0).toLocaleString() + ' words · OCR extracted · fully loaded';
+
+    // Enable chat input
+    const chatInput = document.getElementById('chat-input');
+    if (chatInput) {
+      chatInput.disabled     = false;
+      chatInput.placeholder  = 'Ask anything about ' + _ocrResult.txt_filename + '...';
+    }
+    const sendBtn = document.getElementById('btn-send');
+    if (sendBtn) sendBtn.disabled = false;
+
+    // Clear chat and show loaded message
+    const messagesEl = document.getElementById('chat-messages');
+    if (messagesEl) messagesEl.innerHTML = '';
+    addMessage('system', _ocrResult.txt_filename + ' loaded from OCR. You can now chat, summarize, or run legal review.');
+
+    // Reset chat history on server
+    const rf = new FormData();
+    rf.append('file_path', _ocrResult.file_path);
+    fetch('/chat-reset', { method: 'POST', body: rf }).catch(() => {});
+
+    // Switch to workspace
+    showPage('workspace', document.querySelector('.nav-item'));
+    showToast('Loaded — chat with your extracted document now!');
   }
 
 </script>

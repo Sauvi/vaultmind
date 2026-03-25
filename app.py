@@ -6,6 +6,7 @@ RAG index kept for legal pattern extraction only (full doc scan).
 """
 
 import os
+import re
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -1073,5 +1074,142 @@ async def analyze_full(file_path: str = Form(...)):
         results = run_full_analysis(text, file_name=full_path.name)
         _log_audit("full_analysis", str(full_path), True)
         return JSONResponse({"success": True, "results": results})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+# ══════════════════════════════════════════════════════════════
+# OCR EXTRACT — scanned PDF → editable DOCX + load into workspace
+# ══════════════════════════════════════════════════════════════
+
+@app.post("/ocr-extract")
+async def ocr_extract(file: UploadFile = File(...)):
+    """
+    Upload a scanned PDF → run OCR (Hindi + English) → return editable DOCX.
+    Also loads the extracted text into the workspace so user can chat with it.
+
+    Returns:
+      success, docx_filename (for download), file_path (for workspace chat),
+      page_count, word_count, used_ocr flag, preview (first 500 chars)
+    """
+    try:
+        # ── Validate file type ───────────────────────────────────────────────
+        if not file.filename.lower().endswith(".pdf"):
+            return JSONResponse({
+                "success": False,
+                "error": "OCR Extract only works on PDF files. Please upload a scanned PDF."
+            })
+
+        # ── Save uploaded file to input dir ──────────────────────────────────
+        safe_name = re.sub(r'[^\w.\-]', '_', file.filename)
+        save_path = INPUT_DIR / safe_name
+        INPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+        content = await file.read()
+        with open(save_path, "wb") as f:
+            f.write(content)
+
+        # ── Run full OCR extraction ──────────────────────────────────────────
+        # read_full_text_with_meta auto-detects scanned pages and runs OCR
+        from file_reader import read_full_text_with_meta
+        text, page_count, used_ocr = read_full_text_with_meta(str(save_path))
+
+        if not text.strip():
+            return JSONResponse({
+                "success": False,
+                "error": "No text could be extracted. Check that Tesseract is installed and the PDF is a valid scanned document."
+            })
+
+        # ── Generate editable DOCX from extracted text ──────────────────────
+        try:
+            from docx import Document
+            from docx.shared import Pt, Inches
+            from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+            doc = Document()
+
+            # Document title
+            title_para = doc.add_heading(safe_name.replace('.pdf', '').replace('_', ' '), 0)
+            title_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+            # Metadata block
+            meta = doc.add_paragraph()
+            meta.add_run(f"Extracted by VaultMind OCR  |  Pages: {page_count}  |  Words: {len(text.split()):,}").italic = True
+            meta.add_run(f"\nSource: {safe_name}").italic = True
+            doc.add_paragraph()  # spacer
+
+            # Add a horizontal rule style separator
+            doc.add_heading("Extracted Text", level=1)
+
+            # Split text into paragraphs and add each
+            paragraphs = [p.strip() for p in text.split('\n') if p.strip()]
+            for para_text in paragraphs:
+                # Detect if this looks like a heading (short, uppercase, or page marker)
+                if para_text.startswith('[Page ') and para_text.endswith(']'):
+                    doc.add_heading(para_text, level=2)
+                elif len(para_text) < 80 and para_text.isupper():
+                    doc.add_heading(para_text.title(), level=3)
+                else:
+                    p = doc.add_paragraph(para_text)
+                    p.style.font.size = Pt(11)
+
+            # Save DOCX to output dir
+            docx_name = safe_name.replace('.pdf', '_ocr_extracted.docx')
+            docx_path = OUTPUT_DIR / docx_name
+            OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+            doc.save(str(docx_path))
+
+        except ImportError:
+            return JSONResponse({
+                "success": False,
+                "error": "python-docx not installed. Run: pip install python-docx"
+            })
+
+        # ── Load extracted text into workspace cache ─────────────────────────
+        # Store as a .txt file so user can chat with it immediately
+        txt_name  = safe_name.replace('.pdf', '_ocr_extracted.txt')
+        txt_path  = INPUT_DIR / txt_name
+        txt_path.write_text(text, encoding="utf-8")
+
+        # Cache in memory exactly like a normal upload
+        cache_key = str(txt_path)
+        _doc_cache[cache_key]    = text
+        _chat_history[cache_key] = []
+        _doc_meta[cache_key] = {
+            "name":      txt_name,
+            "pages":     page_count,
+            "words":     len(text.split()),
+            "chars":     len(text),
+            "size_kb":   round(len(text.encode()) / 1024, 1),
+            "extension": ".txt",
+            "is_ocr":    True,
+        }
+
+        # Build RAG index in background
+        import threading
+        def _build_index():
+            try:
+                from rag_engine import index_document
+                idx = index_document(text, file_name=txt_name, total_pages=page_count, is_ocr=True)
+                _rag_index[cache_key] = idx
+                print(f"OCR RAG index built: {txt_name}")
+            except Exception as e:
+                print(f"OCR RAG index failed: {e}")
+        threading.Thread(target=_build_index, daemon=True).start()
+
+        _log_audit("ocr_extract", safe_name, True)
+
+        return JSONResponse({
+            "success":      True,
+            "docx_filename": docx_name,
+            "file_path":    cache_key,
+            "txt_filename": txt_name,
+            "page_count":   page_count,
+            "word_count":   len(text.split()),
+            "used_ocr":     used_ocr,
+            "preview":      text[:600],
+            "message":      f"OCR complete. {page_count} pages, {len(text.split()):,} words extracted."
+        })
+
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)})
